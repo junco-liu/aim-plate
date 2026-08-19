@@ -1,0 +1,235 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Spike — Pyodide 同步驱动 AIM</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  body { font: 14px/1.5 ui-monospace, Menlo, Consolas, monospace; margin: 0; padding: 12px;
+         background: #faf9f7; color: #16130f; }
+  h1 { font-size: 15px; margin: 0 0 10px; font-weight: 600; }
+  .bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+  input[type=text] { font: inherit; padding: 5px 8px; border: 1px solid #b9b3ab; }
+  button { font: inherit; padding: 5px 14px; border: 1px solid #16130f; background: #fff; cursor: pointer; }
+  button:disabled { opacity: .4; cursor: default; }
+  #stop { border-color: #B3261E; color: #B3261E; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; height: 70vh; }
+  textarea, #log { font: inherit; border: 1px solid #b9b3ab; padding: 8px; background: #fff;
+                   overflow: auto; white-space: pre-wrap; margin: 0; }
+  textarea { resize: none; }
+  .err { color: #B3261E; }
+  .dim { color: #6d675f; }
+  .ok  { color: #17518C; }
+  @media (max-width: 700px) { .grid { grid-template-columns: 1fr; height: auto; }
+                              textarea, #log { height: 40vh; } }
+</style>
+
+<h1>Spike：Pyodide 能不能同步驱动 AIM？</h1>
+
+<div class="bar">
+  <label><input type="checkbox" id="mock" checked> 模拟机器人（无需硬件，往返 120ms）</label>
+  <input type="text" id="ip" value="192.168.4.1" size="15" aria-label="机器人 IP">
+  <button id="conn">连接</button>
+  <span id="state" class="dim">未连接</span>
+</div>
+
+<div class="bar">
+  <button id="run" disabled>▶ 运行</button>
+  <button id="stop" disabled>■ 停止</button>
+  <span id="mode" class="dim">Pyodide 加载中…</span>
+</div>
+
+<div class="grid">
+  <textarea id="code" spellcheck="false">
+# 三件要验证的事：同步调用、可中断的 sleep、Stop 能打断循环
+print("开始")
+
+for i in range(5):
+    print("第", i + 1, "圈")
+    robot.drive(angle=0, speed=100)   # 同步：这一行等机器人回复才往下走
+    robot.sleep(1)
+    robot.turn(rate=90)
+    robot.sleep(1)
+
+robot.stop()
+print("结束")
+</textarea>
+  <pre id="log"></pre>
+</div>
+
+<script type="module">
+const $ = id => document.getElementById(id);
+const log = (m, cls) => {
+  const el = document.createElement('span');
+  if (cls) el.className = cls;
+  el.textContent = m + '\n';
+  $('log').append(el);
+  $('log').scrollTop = 1e9;
+};
+
+/* ── 传输：真机 ws_cmd，或模拟 ────────────────────────────
+   真机部分与 index.html 的 send() 同构：一问一答，回复按发送顺序到达。 */
+let cmdWs, pending = [];
+
+function wsSend(obj) {
+  if (cmdWs?.readyState !== 1) return Promise.reject(new Error('未连接机器人'));
+  return new Promise((res, rej) => {
+    pending.push({ res, rej });
+    cmdWs.send(new TextEncoder().encode(JSON.stringify(obj)));
+  });
+}
+
+// ponytail: 固定 120ms，够验证「一问一答 + 不冻 UI」；要测真实抖动就连真机
+const mockSend = () => new Promise(r => setTimeout(() => r({ status: 'ok' }), 120));
+
+$('conn').onclick = () => {
+  const host = $('ip').value.trim();
+  if (cmdWs) { cmdWs.close(); return; }
+  $('state').textContent = '连接中…';
+  cmdWs = new WebSocket(`ws://${host}/ws_cmd`);
+  cmdWs.binaryType = 'arraybuffer';
+  cmdWs.onmessage = e => {
+    const p = pending.shift(); if (!p) return;
+    try {
+      const r = JSON.parse(new TextDecoder().decode(e.data));
+      r.status === 'error' ? p.rej(new Error(r.error_info ?? r.cmd_id + ' 失败')) : p.res(r);
+    } catch { p.rej(new Error('坏帧')); }
+  };
+  cmdWs.onopen = () => {
+    $('state').textContent = '已连接 ' + host;
+    $('state').className = 'ok'; $('conn').textContent = '断开';
+    $('mock').checked = false;
+    wsSend({ cmd_id: 'program_init' }).catch(() => {});
+  };
+  cmdWs.onclose = () => {
+    pending.splice(0).forEach(p => p.rej(new Error('连接已关闭')));
+    cmdWs = null;
+    $('state').textContent = '未连接'; $('state').className = 'dim'; $('conn').textContent = '连接';
+    $('mock').checked = true;
+  };
+};
+
+/* ── 桥：Python 的每一次调用都落到这两个函数 ──────────────── */
+let abort = false;
+const STOP = '__aim_stop__';
+
+window.aimCmd = async json => {
+  if (abort) throw new Error(STOP);
+  const obj = JSON.parse(json);
+  log('→ ' + json, 'dim');
+  const r = await ($('mock').checked ? mockSend() : wsSend(obj));
+  if (abort) throw new Error(STOP);       // 等待期间按了停止
+  return JSON.stringify(r);
+};
+
+// Python 的 sleep 不能落到 time.sleep：主线程上那会冻死事件循环，Stop 都点不动
+window.aimSleep = async sec => {
+  const end = performance.now() + sec * 1000;
+  while (performance.now() < end) {
+    if (abort) throw new Error(STOP);
+    await new Promise(r => setTimeout(r, Math.min(50, end - performance.now())));
+  }
+};
+
+/* ── Python 侧 ───────────────────────────────────────────
+   两种形态，加载时探测哪种可用：
+   sync  = JSPI，robot.drive(...)        ← 想要的
+   async = 退路，await robot.drive(...)  ← 用户得写 await */
+const glue = kind => `
+import json, js
+${kind === 'sync' ? 'from pyodide.ffi import run_sync' : ''}
+
+class Robot:
+    ${kind === 'sync'
+      ? 'def _c(self, **kw): return json.loads(run_sync(js.aimCmd(json.dumps(kw))))'
+      : 'async def _c(self, **kw): return json.loads(await js.aimCmd(json.dumps(kw)))'}
+
+    ${kind === 'sync' ? 'def' : 'async def'} drive(self, angle=0, speed=100):
+        ${kind === 'sync' ? '' : 'return await '}self._c(cmd_id='drive', angle=angle, speed=speed, stacking_type=0)
+
+    ${kind === 'sync' ? 'def' : 'async def'} turn(self, rate=90):
+        ${kind === 'sync' ? '' : 'return await '}self._c(cmd_id='turn', turn_rate=rate, stacking_type=0)
+
+    ${kind === 'sync' ? 'def' : 'async def'} stop(self):
+        ${kind === 'sync' ? '' : 'await '}self._c(cmd_id='drive', angle=0, speed=0, stacking_type=0)
+        ${kind === 'sync' ? '' : 'await '}self._c(cmd_id='turn', turn_rate=0, stacking_type=0)
+
+    ${kind === 'sync' ? 'def' : 'async def'} kick(self, level='medium'):
+        ${kind === 'sync' ? '' : 'return await '}self._c(cmd_id='kick_' + level)
+
+    ${kind === 'sync' ? 'def' : 'async def'} light(self, n, r, g, b):
+        key = 'all' if n == 'all' else 'light%d' % n
+        ${kind === 'sync' ? '' : 'return await '}self._c(cmd_id='light_set', **{key: {'r': r, 'g': g, 'b': b}})
+
+    ${kind === 'sync' ? 'def' : 'async def'} sleep(self, sec):
+        ${kind === 'sync' ? 'run_sync(js.aimSleep(sec))' : 'await js.aimSleep(sec)'}
+
+robot = Robot()
+`;
+
+/* ── 启动 ───────────────────────────────────────────────── */
+let py, kind;
+const { loadPyodide } = await import('https://cdn.jsdelivr.net/pyodide/v314.0.5/full/pyodide.mjs');
+py = await loadPyodide({ stdout: m => log(m), stderr: m => log(m, 'err') });
+
+// 探测：JSPI 在不在，run_sync 用不用得了
+const jspi = typeof WebAssembly.Suspending === 'function';
+try {
+  await py.runPythonAsync(`
+from pyodide.ffi import run_sync
+import js
+run_sync(js.Promise.resolve(1))
+`);
+  kind = 'sync';
+} catch (e) {
+  kind = 'async';
+  log('run_sync 不可用：' + e.message.split('\n').pop(), 'err');
+}
+
+$('mode').textContent = `Pyodide ${py.version} · WebAssembly.Suspending ${jspi ? '有' : '无'} · ` +
+  (kind === 'sync' ? '同步模式 robot.drive(...)' : '退路模式 await robot.drive(...)');
+$('mode').className = kind === 'sync' ? 'ok' : 'err';
+log(`就绪（${kind === 'sync' ? '同步' : 'await 退路'}模式）`, 'ok');
+
+if (kind === 'async') {
+  $('code').value = $('code').value
+    .replace(/robot\.(drive|turn|stop|sleep|kick|light)/g, 'await robot.$1')
+    .replace(/^(\s*)await robot/gm, '$1await robot');
+  log('已把示例代码改写成 await 形式', 'dim');
+}
+
+$('run').disabled = false;
+
+/* drive / turn 是持续命令：Python 停了机器人不会停。所以「程序结束」必须等于
+   「机器人停下」——不管是正常跑完、报错退出，还是按了停止。
+   走原始 transport 而不是 aimCmd：abort 置位后 aimCmd 是要抛错的，急停不能被它挡住。 */
+async function halt() {
+  const raw = obj => ($('mock').checked ? mockSend() : wsSend(obj)).catch(() => {});
+  await raw({ cmd_id: 'drive', angle: 0, speed: 0, stacking_type: 0 });
+  await raw({ cmd_id: 'turn', turn_rate: 0, stacking_type: 0 });
+  log('⊘ 已下发急停（drive 0 / turn 0）', 'dim');
+}
+
+$('run').onclick = async () => {
+  abort = false;
+  $('log').textContent = '';
+  $('run').disabled = true; $('stop').disabled = false;
+  const t0 = performance.now();
+  try {
+    py.runPython(glue(kind));
+    await py.runPythonAsync($('code').value);
+    log(`✓ 完成 ${Math.round(performance.now() - t0)}ms`, 'ok');
+  } catch (e) {
+    const msg = String(e.message ?? e);
+    log(msg.includes(STOP) ? `■ 已停止 ${Math.round(performance.now() - t0)}ms`
+                           : msg.split('\n').slice(-3).join('\n'),
+        msg.includes(STOP) ? 'dim' : 'err');
+  }
+  await halt();                       // 兜底：任何退出路径都不把机器人留在运动状态
+  $('run').disabled = false; $('stop').disabled = true;
+};
+
+// 急停不等 Python 退栈：它可能正卡在一条命令的往返里。立刻插队下发，
+// 之后 run 的兜底会再发一次——冗余是有意的，跟页面上那条急停条一个道理。
+// ponytail: 中断只在 await 点生效。纯计算死循环（while True: pass）打不断——那要 worker +
+// SharedArrayBuffer + setInterruptBuffer，而 SAB 需要 COOP/COEP 头，GitHub Pages 设不了。
+$('stop').onclick = () => { abort = true; log('停止…', 'dim'); halt(); };
+</script>
