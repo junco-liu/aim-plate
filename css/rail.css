@@ -1,0 +1,179 @@
+/* ── the rail: hanging head + full rule, no cards ───────── */
+.rail { padding: 0 var(--s5) var(--s5);   /* the splitter owns the left rule now */
+  overflow-y: auto; display: flex; flex-direction: column; }
+
+/* The rail has two faces. 控制 is the tool groups; 代码 replaces them wholesale —
+   in that face there is nothing but the editor and its console, no controls at all. */
+.railtabs { display: flex; gap: var(--s4); position: sticky; top: 0; z-index: 2;
+  margin: 0 calc(var(--s5) * -1); padding: 0 var(--s5);
+  background: var(--paper); border-bottom: 1px solid var(--rule); }
+.rtab { appearance: none; background: none; border: 0; border-bottom: 2px solid transparent;
+  margin-bottom: -1px; padding: 13px 0; cursor: pointer;
+  font: 650 11px/1 var(--sans); letter-spacing: .06em; text-transform: uppercase;
+  color: var(--ink2); -webkit-tap-highlight-color: transparent;
+  transition: color var(--fast), border-color var(--fast); }
+.rtab.on { color: var(--ink); border-bottom-color: var(--ink); }
+.rtab:focus-visible { outline: 2px solid var(--press); outline-offset: 2px; }
+
+body.rail-py .rail > .grp, body.rail-py .rail > details.log { display: none; }
+body:not(.rail-py) .pypanel { display: none; }
+
+/* editor over console, with a draggable rule between them — same grab target as the
+   rail's, one axis over. --pylog is all the drag writes. */
+.pypanel { flex: 1; min-height: 0; padding-top: var(--s4);
+  display: grid; grid-template-rows: auto minmax(80px,1fr) 7px var(--pylog); }
+.pybar { display: flex; gap: 7px; align-items: center; margin-bottom: var(--s3); }
+.pybar .btn { height: 32px; padding: 0 11px; font-size: 12px; }
+.pybar .ico { width: 32px; padding: 0; flex: none; }   /* or the state text squashes it */
+.pystate { margin-left: auto; padding-left: var(--s2);
+  font: 400 10px/1.4 var(--mono); color: var(--ink2); text-align: right; }
+
+/* A transparent textarea over a highlighted <pre>: the textarea keeps every native
+   editing behaviour (undo, IME, selection, spellcheck off) and the <pre> only paints.
+   Both must share font, padding and tab-size exactly or the caret drifts off the glyphs. */
+.editor { display: grid; grid-template-columns: auto minmax(0,1fr); min-height: 0;
+  border: 1px solid var(--rule); background: #fff; overflow: hidden; }
+.editor:focus-within { border-color: var(--press); box-shadow: inset 0 0 0 1px var(--press); }
+.gut { overflow: hidden; user-select: none; text-align: right;
+  padding: 9px 8px 9px 10px; border-right: 1px solid var(--rule-2);
+  background: var(--paper); color: var(--off); }
+.cw { position: relative; overflow: hidden; }
+.gut, #pyHi, #pyCode {
+  margin: 0; font: 400 12.5px/1.65 var(--mono); tab-size: 4; white-space: pre;
+}
+#pyHi, #pyCode { position: absolute; inset: 0; padding: 9px 10px; border: 0; }
+#pyHi { overflow: hidden; pointer-events: none; color: var(--ink); }
+#pyCode { overflow: auto; resize: none; background: none; color: transparent;
+  -webkit-text-fill-color: transparent; caret-color: var(--ink); }
+#pyCode:focus { outline: none; }
+#pyCode::selection { background: #C9DAEC; }
+
+/* The copy button sits inside the box it copies, clear of the scrollbar, and stays out
+   of the way until the pointer is over the code. Touch has no hover, so there it is
+   simply always there — and keyboard focus reveals it either way. */
+/* .btn.quiet already carries the muted-until-hover treatment — restating colour here
+   would out-specify .btn:hover and leave a black icon on the black hover fill. */
+#pyCopy { position: absolute; top: 6px; right: 14px; z-index: 2;
+  width: 24px; height: 24px; padding: 0; }
+#pyCopy .icon { width: 13px; height: 13px; }
+@media (hover: hover) {
+  #pyCopy { opacity: 0; transition: opacity var(--fast), color var(--fast),
+                                    border-color var(--fast), background var(--fast); }
+  .editor:hover #pyCopy, #pyCopy:focus-visible { opacity: 1; }
+}
+/* Code is its own surface, not the paper — one extra hue for strings, and nothing more.
+   Everything else is carried by the existing ink / press pair plus weight and italic. */
+#pyHi .k { color: var(--press); font-weight: 600; }   /* keyword */
+#pyHi .b { font-weight: 600; }                        /* builtin, robot */
+#pyHi .s { color: #3E6B2F; }                          /* string */
+#pyHi .n { color: var(--ink2); }                      /* number */
+#pyHi .c { color: var(--off); font-style: italic; }   /* comment */
+
+.vsplit { appearance: none; background: none; border: 0; padding: 0;
+  position: relative; cursor: row-resize; touch-action: none;
+  -webkit-tap-highlight-color: transparent; }
+.vsplit::before { content: ''; position: absolute; left: 0; right: 0; top: 50%;
+  height: 1px; background: var(--rule); transform: translateY(-50%);
+  transition: background var(--fast), height var(--fast); }
+.vsplit:hover::before, .vsplit:focus-visible::before, body.dragging .vsplit::before {
+  background: var(--press); height: 2px; }
+.vsplit:focus-visible { outline: none; }
+
+#pyLog { min-height: 0; margin: 0; overflow: auto; padding-top: 9px;
+  font: 400 11px/1.7 var(--mono); color: var(--ink);
+  white-space: pre-wrap; word-break: break-all; }
+#pyLog .err { color: var(--stop); }
+#pyLog .dim { color: var(--ink2); }
+
+/* Full screen is a plain fixed box, not the Fullscreen API: it also works inside an
+   iframe and needs no permission, and Esc still closes it. */
+.pypanel.full { position: fixed; inset: 0; z-index: 60;
+  padding: var(--s4) var(--s5); background: var(--paper); }
+.grp { padding-top: 17px; }
+.grp + .grp { margin-top: 15px; border-top: 1px solid var(--rule); }
+/* the hanging head is also the disclosure control — <details> does the work, no JS */
+.grp > summary {
+  list-style: none; cursor: pointer; margin-bottom: 11px;
+  display: flex; align-items: center; gap: 7px;
+  -webkit-tap-highlight-color: transparent;
+}
+.grp:not([open]) > summary { margin-bottom: 0; }
+.grp > summary::-webkit-details-marker { display: none; }
+.grp > summary .icon { width: 12px; height: 12px; color: var(--ink2);
+  transition: transform var(--fast); }
+.grp[open] > summary .icon { transform: rotate(90deg); }
+.grp > summary:focus-visible { outline: 2px solid var(--press); outline-offset: 3px; }
+.grp h2 {
+  margin: 0; display: flex; align-items: baseline; gap: var(--s2);
+  font: 650 11px/1 var(--sans); letter-spacing: .06em; text-transform: uppercase;
+}
+.grp h2 u { text-decoration: none; font: 400 9.5px/1 var(--mono);
+  letter-spacing: .1em; color: var(--ink2); }
+
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+.row3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 7px; }
+
+.pad {
+  display: grid; grid-template-columns: repeat(3,1fr); gap: 7px;
+  grid-template-areas: "ccw up  cw" "lf  stop rt" ".   dn  .";
+}
+.pad .btn { padding: 0; height: var(--tap); }
+[data-go="0"]{grid-area:up} [data-go="180"]{grid-area:dn}
+[data-go="-90"]{grid-area:lf} [data-go="90"]{grid-area:rt}
+[data-spin="-1"]{grid-area:ccw} [data-spin="1"]{grid-area:cw}
+[data-halt]{grid-area:stop}
+
+.meter { margin-top: 11px; }
+.meter .lab { display: flex; justify-content: space-between; align-items: baseline;
+  font-size: 11.5px; color: var(--ink2); margin-bottom: 4px; }
+.meter .lab b { font: 550 11.5px/1 var(--mono); color: var(--ink);
+  font-variant-numeric: tabular-nums; }
+.meter input { width: 100%; margin: 0; height: 32px; accent-color: var(--press); }
+
+.lightRow { display: flex; gap: 7px; align-items: center; }
+select {
+  flex: 1; min-width: 0; height: var(--tap); padding: 0 9px;
+  font: 400 13px/1 var(--sans); color: var(--ink);
+  background: #fff; border: 1px solid var(--ink); border-radius: 0;
+}
+select:disabled { color: var(--off); border-color: var(--rule); background: var(--paper); }
+input[type=color] {
+  width: var(--tap); height: var(--tap); flex: none; padding: 3px;
+  background: #fff; border: 1px solid var(--ink); border-radius: 0; cursor: pointer;
+}
+input[type=color]:disabled { border-color: var(--rule); cursor: not-allowed; }
+input[type=color]::-webkit-color-swatch { border: 0; }
+input[type=color]::-moz-color-swatch { border: 0; }
+
+.keys { margin-top: 10px; font: 400 10.5px/1.75 var(--mono); color: var(--ink2); }
+.keys kbd { border: 1px solid var(--rule); background: #fff; padding: 1px 4px;
+  margin-right: 2px; font: 500 9.5px/1 var(--mono); color: var(--ink); }
+
+details.log { border-top: 1px solid var(--rule); margin-top: 15px; }
+details.log summary {
+  padding: 10px 0 0; cursor: pointer; list-style: none;
+  display: flex; align-items: center; gap: 6px;
+  font: 400 10.5px/1 var(--mono); color: var(--ink2);
+}
+details.log summary::-webkit-details-marker { display: none; }
+details.log summary .icon { width: 12px; height: 12px; transition: transform var(--fast); }
+details.log[open] summary .icon { transform: rotate(90deg); }
+#log { margin: 8px 0 0; max-height: 150px; overflow: auto;
+  font: 400 11px/1.7 var(--mono); color: var(--ink2);
+  white-space: pre-wrap; word-break: break-all; }
+#log .err { color: var(--stop); }
+
+.site-footer {
+  border-top: 1px solid var(--rule);
+  padding: 10px var(--s5);
+  text-align: center;
+  font: 400 10.5px/1.8 var(--mono);
+  color: var(--ink2);
+}
+
+.footer-line {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+}

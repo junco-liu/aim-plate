@@ -1,0 +1,221 @@
+/* ── columns ────────────────────────────────────────────── */
+/* The rail's width is the reader's, not a constant: a page with the code editor
+   open wants a wide margin, one that's just driving wants none. --rail is the
+   only thing the drag writes. */
+.cols { display: grid; grid-template-columns: minmax(0,1fr) 7px var(--rail); flex: 1; min-height: 0; }
+
+/* the splitter draws the rule the rail used to own, with a fat invisible grab target */
+.split { appearance: none; background: none; border: 0; padding: 0;
+  position: relative; cursor: col-resize; touch-action: none;
+  -webkit-tap-highlight-color: transparent; }
+.split::before { content: ''; position: absolute; top: 0; bottom: 0; left: 50%;
+  width: 1px; background: var(--rule); transform: translateX(-50%);
+  transition: background var(--fast), width var(--fast); }
+.split:hover::before, .split:focus-visible::before, body.dragging .split::before {
+  background: var(--press); width: 2px; }
+.split:focus-visible { outline: none; }
+body.dragging { user-select: none; }   /* the cursor is set from the splitter itself */
+/* the plate must not fight the pointer while the rule is being dragged over it */
+body.dragging .figure, body.dragging #scrCv { pointer-events: none; }
+
+/* ── the plate ──────────────────────────────────────────── */
+.plateWrap { padding: var(--s5); display: flex; flex-direction: column;
+  min-width: 0; min-height: 0; }
+.stageArea { display: grid; place-items: center; min-height: 0; }
+.plateBox {
+  border: 1px solid var(--ink);
+  width: 100%; max-width: 760px;
+}
+.figure { position: relative; aspect-ratio: 4/3; background: var(--plate); overflow: hidden; }
+#view { width: 100%; height: 100%; object-fit: contain; display: block; background: #0d0f0e; }
+body:not(.streaming) #view { display: none; }
+
+/* caption bar: ink when idle, press blue when the feed is live —
+   the bar's fill is the state, not a coloured dot */
+.capbar {
+  background: var(--ink); color: var(--paper);
+  display: flex; align-items: center; gap: var(--s3);
+  height: var(--capH); padding: 0 11px;
+  font: 500 10.5px/1 var(--mono); letter-spacing: .04em;
+  transition: background var(--fast);
+}
+body.streaming .capbar { background: var(--press); }
+.capbar .mark { display: flex; align-items: center; gap: 6px; color: #fff; }
+.capbar .mark i { width: 8px; height: 8px; background: currentColor; display: block; }
+body.streaming .capbar .mark i { animation: tick 1.6s steps(2) infinite; }
+@keyframes tick { 50% { opacity: .3; } }
+.capbar .sp { margin-left: auto; color: #ffffffa8; }
+
+/* The feed switch lives on the caption bar: the control and the state readout
+   are the same object, attached to the picture it governs. Square, because
+   nothing in this world is round — a panel slide switch, not an iOS pill. */
+.camSwitch {
+  display: flex; align-items: center; gap: 7px;
+  height: 100%; padding-left: var(--s1);
+  cursor: pointer; color: inherit; -webkit-tap-highlight-color: transparent;
+}
+.camSwitch input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.camSwitch .track {
+  position: relative; width: 34px; height: 18px; flex: none;
+  border: 1px solid currentColor; background: transparent;
+  transition: background var(--fast);
+}
+.camSwitch .knob {
+  position: absolute; top: 2px; left: 2px; width: 12px; height: 12px;
+  background: currentColor;
+  transition: transform 160ms cubic-bezier(.2,.8,.3,1), background var(--fast);
+}
+.camSwitch input:checked + .track { background: currentColor; }
+.camSwitch input:checked + .track .knob { transform: translateX(16px); background: var(--press); }
+.camSwitch input:disabled ~ * { opacity: .4; }
+.camSwitch:has(input:disabled) { cursor: not-allowed; }
+.camSwitch input:focus-visible + .track { outline: 2px solid #fff; outline-offset: 2px; }
+
+/* plate contents while there is no picture */
+.ph {
+  position: absolute; inset: 0;
+  display: grid; place-content: center; justify-items: center; gap: var(--s3);
+  padding: var(--s6); text-align: center;
+  background: repeating-linear-gradient(-45deg, #EDEFEA 0 10px, var(--plate) 10px 20px);
+}
+body.streaming .ph { display: none; }
+.ph svg { width: 28px; height: 28px; stroke: var(--ink2); fill: none;
+  stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+#phTitle { margin: 0; font-size: 15px; font-weight: 620; color: var(--ink); }
+#phHint  { margin: 0; font-size: 12.5px; color: var(--ink2); max-width: 34ch; }
+
+/* first run: the plate prints the setup steps. Guidance is the plate's
+   content, not a tooltip bolted on beside it. */
+.steps { display: none; margin: var(--s2) 0 0; padding: 0; list-style: none;
+  text-align: left; counter-reset: s; }
+body.pristine .steps { display: grid; gap: 7px; }
+body.pristine #phHint { display: none; }
+.steps li {
+  counter-increment: s; position: relative; padding-left: 26px;
+  font-size: 12.5px; color: var(--ink2); max-width: 38ch;
+}
+.steps li::before {
+  content: counter(s); position: absolute; left: 0; top: 1px;
+  width: 17px; height: 17px; border: 1px solid var(--ink2); color: var(--ink);
+  font: 500 10px/15px var(--mono); text-align: center;
+}
+.steps b { color: var(--ink); font-weight: 600; }
+
+.figno { margin: 9px auto 0; max-width: 760px; width: 100%;
+  font: 400 11px/1.5 var(--mono); color: var(--ink2); }
+.figno kbd {
+  border: 1px solid var(--rule); background: #fff; padding: 1px 4px; margin: 0 1px;
+  font: 500 10px/1 var(--mono); color: var(--ink);
+}
+
+/* ── AI vision: annotation over the plate ───────────────── */
+/* The SVG shares the frame's 320×240 space, so a box needs no pixel maths —
+   preserveAspectRatio lines it up with the object-fit:contain image for free. */
+#vlay { position: absolute; inset: 0; width: 100%; height: 100%;
+  pointer-events: none; display: none; }
+body.vlay #vlay { display: block; }
+#vlay text { font: 500 9px var(--mono); paint-order: stroke;
+  stroke: #000000B3; stroke-width: 2.6px; stroke-linejoin: round; }
+
+.sigs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.sig {
+  display: flex; align-items: center; gap: 6px; min-width: 0;
+  border: 1px solid var(--rule); padding: 0 7px; height: 30px;
+  font: 400 11px/1 var(--mono); color: var(--ink2);
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.sig input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.sig i { width: 9px; height: 9px; flex: none; opacity: .22; }
+.sig span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sig b { font: 500 11px/1 var(--mono); color: var(--off); font-variant-numeric: tabular-nums; }
+.sig:has(input:checked) { border-color: var(--ink); color: var(--ink); }
+.sig:has(input:checked) i { opacity: 1; }
+.sig:has(input:checked) b { color: var(--ink); }
+.sig:has(input:disabled) { cursor: not-allowed; opacity: .5; }
+.sig:has(input:focus-visible) { outline: 2px solid var(--press); outline-offset: 2px; }
+
+details.vt { max-width: 760px; width: 100%; margin: 9px auto 0;
+  border-top: 1px solid var(--rule); }
+details.vt summary {
+  padding: 9px 0 0; cursor: pointer; list-style: none;
+  display: flex; align-items: center; gap: 6px;
+  font: 400 10.5px/1 var(--mono); color: var(--ink2);
+}
+details.vt summary::-webkit-details-marker { display: none; }
+details.vt summary .icon { width: 12px; height: 12px; transition: transform var(--fast); }
+details.vt[open] summary .icon { transform: rotate(90deg); }
+.vwrap { max-height: 170px; overflow: auto; margin-top: 7px; }
+.vtab { border-collapse: collapse; width: 100%; min-width: 560px;
+  font: 400 11px/1.65 var(--mono); color: var(--ink2); }
+.vtab th { position: sticky; top: 0; background: var(--paper);
+  text-align: left; font-weight: 500; color: var(--ink); white-space: nowrap;
+  padding: 0 10px 3px 0; border-bottom: 1px solid var(--rule); }
+.vtab td { padding: 2px 10px 2px 0; white-space: nowrap;
+  font-variant-numeric: tabular-nums; }
+.vtab tbody tr + tr td { border-top: 1px solid var(--rule-2); }
+.vtab .k { color: var(--ink); }
+.vtab .k i { display: inline-block; width: 8px; height: 8px; margin-right: 6px; }
+.vempty { margin: 8px 0 0; font: 400 11px/1.6 var(--mono); color: var(--off); }
+
+/* ── the robot's screen: a second content for the same plate ─ */
+/* 240×240 coordinates, physically a circle of r=120 — the corners are 21% of
+   the square and are never visible, so the plate hatches them out. */
+.tabs { display: flex; height: 100%; margin-left: -11px; }
+.tab {
+  appearance: none; background: none; border: 0; border-bottom: 2px solid transparent;
+  height: 100%; padding: 0 11px; cursor: pointer;
+  font: inherit; letter-spacing: inherit; color: #ffffff8f;
+}
+.tab.on { color: #fff; border-bottom-color: #fff; }
+.tab:focus-visible { outline: 2px solid #fff; outline-offset: -2px; }
+body.tab-scr .camOnly { display: none; }
+
+.scr { position: absolute; inset: 0; display: none; place-items: center; }
+body.tab-scr .scr { display: grid; }
+body.tab-scr .ph, body.tab-scr #view, body.tab-scr #vlay { display: none; }
+.scrBox { position: relative; height: 100%; aspect-ratio: 1; max-width: 100%; }
+#scrCv { width: 100%; height: 100%; display: block; background: #000;
+  image-rendering: pixelated; touch-action: none; cursor: crosshair; }
+body.m-img #scrCv { cursor: grab; }
+body.m-emo #scrCv { cursor: default; }
+/* the emoji is drawn by the robot over everything else on its screen — the plate
+   mirrors that by covering the canvas rather than replacing it */
+#emoView { position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: contain; display: none; pointer-events: none; }
+.emoLbl { position: absolute; inset: 0; display: none; place-content: center;
+  font: 500 14px/1 var(--mono); color: #fff; text-shadow: 0 0 8px #000;
+  pointer-events: none; }
+body.emo-on #emoView { display: block; }
+body.emo-on.emo-nopic #emoView { display: none; }
+body.emo-on.emo-nopic .emoLbl { display: grid; }
+#scrMask { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+
+.seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; }
+.segb {
+  appearance: none; background: var(--paper); cursor: pointer;
+  border: 1px solid var(--rule); height: 30px; color: var(--ink2);
+  font: 400 11px/1 var(--mono);
+}
+.segb + .segb { border-left: 0; }
+.segb.on { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+.segb:focus-visible { outline: 2px solid var(--press); outline-offset: 2px; }
+
+body:not(.m-pen) .forPen, body:not(.m-img) .forImg, body:not(.m-emo) .forEmo { display: none; }
+
+/* 36 emoji. Previews come from api.vex.com, so they are missing whenever there is no
+   internet — on the robot's own AP, for one — and the tile falls back to its name. */
+.emos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px;
+  max-height: 264px; overflow-y: auto; margin-top: 9px; }
+.emo {
+  appearance: none; background: var(--paper); border: 1px solid var(--rule);
+  padding: 4px 2px 4px; cursor: pointer; min-width: 0;
+  display: grid; justify-items: center; align-content: center; gap: 3px;
+  font: 400 10px/1.2 var(--mono); color: var(--ink2);
+}
+.emo img { width: 32px; height: 32px; display: block; }
+.emo span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.emo.on { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+.emo:focus-visible { outline: 2px solid var(--press); outline-offset: 2px; }
+.cost { margin: 9px 0 7px; font: 400 10.5px/1.5 var(--mono); color: var(--ink2); }
+.bar { height: 3px; background: var(--rule-2); margin-top: 7px; }
+.bar i { display: block; height: 100%; background: var(--press); width: 0; }

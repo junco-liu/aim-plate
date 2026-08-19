@@ -1,0 +1,57 @@
+/* ── phone: real reflow ─────────────────────────────────── */
+@media (max-width: 899px) {
+  :root { --tap: 52px; --capH: 44px; }   /* the caption bar is now a touch target */
+  .sheet { grid-template-columns: 1fr; }          /* the shoulder folds away … */
+  .shoulder { display: none; }                    /* … the pad's centre stop carries it */
+  .cols { grid-template-columns: 1fr; }
+  .split { display: none; }                       /* one column — nothing to split */
+  header { gap: var(--s3); padding: var(--s3) var(--s4) 10px; }
+  /* The repo link rides the title's row here rather than the far right corner: this
+     header wraps into rows, and giving the link its own auto margin only steals the
+     slack the readout needs. "Top right" is a desktop idea. */
+  .readout { order: 2; gap: var(--s4); }
+  .field { order: 3; width: 100%; }
+  .field #ip { flex: 1; width: auto; }
+  /* Connected, only 断开 is left. At order 3 it landed after the readout and took a
+     whole row to itself; a lone small button belongs on the title line. */
+  body.live .field { order: 1; width: auto; margin-left: auto; }
+  body.live .readout { order: 2; width: 100%; margin-left: 0; }
+  .plateWrap { padding: var(--s4) var(--s4) 0; }
+  .capbar { gap: var(--s2); padding: 0 8px; }
+  .capbar .sp { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rail { display: flex; border-left: 0; padding: 0 var(--s4) var(--s4); }
+  .railtabs { order: -2; margin: 0 calc(var(--s4) * -1); padding: 0 var(--s4); }
+  .grp.drive { order: -1; }                       /* driving first, in thumb reach */
+  .pypanel { min-height: 470px; }                 /* no column height to inherit here */
+  .pad .btn { height: 56px; }
+}
+
+/* Desktop: the plate takes whichever axis binds first, so the column never
+   ends in a dead band. `container-type: size` stops the element taking height
+   from its contents, so the whole chain above it must be a definite height —
+   body's `min-height` alone leaves it indefinite and the plate collapses to 0.
+   Guarded to ≥900px: on a phone the page must stay free to scroll. */
+@media (min-width: 900px) {
+  /* The sheet takes the viewport row and the footer hugs — not the other way round.
+     With `auto 1fr` the sheet was content-sized, so the plate's height came from
+     whichever column happened to be taller: switch the rail to a shorter face and the
+     whole page shrank with it. minmax(0,·) lets the rail scroll instead of pushing. */
+  body { height: 100dvh; grid-template-rows: minmax(0,1fr) auto; }
+
+  /* The head rule is chrome, not a control surface: its own input and buttons run
+     smaller than the rail's, which stay thumb-sized. On a phone they don't — that
+     block leaves --tap alone precisely because everything up there is a touch target. */
+  header { gap: var(--s3); padding: 8px var(--s5) 7px; }
+  header .btn { height: 30px; padding: 0 11px; font-size: 12.5px; }
+  header input[type=text] { height: 30px; width: 132px; padding: 0 9px; font-size: 12.5px; }
+  .title { font-size: 14px; }
+  .readout { gap: var(--s4); }
+  .readout .m { font-size: 11.5px; }
+  .page, .cols, .plateWrap { min-height: 0; }
+  .stageArea { flex: 1; min-height: 0; width: 100%; container-type: size; }
+  .plateBox { width: min(100cqw, calc((100cqh - var(--capH)) * 4 / 3)); max-width: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
