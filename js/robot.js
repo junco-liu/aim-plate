@@ -3,8 +3,9 @@
    (AIM_Websocket_Library/vex): same method names, same argument order, same units,
    same defaults. A program written against the official docs should run here
    unchanged, so this file is a port and not a design — where the official code does
-   something surprising (Led.on maps int 1 to light2; move_at does not clamp negative
-   velocity because the firmware flips it) the surprise is reproduced on purpose.
+   something surprising (move_at does not clamp negative velocity because the firmware
+   flips it) the surprise is reproduced on purpose. The single deliberate divergence is
+   Led.on's integer index, see _light() for why.
 
    It lives in a .js file rather than a .py one because a .py would have to be
    fetch()ed, and fetch from file:// is CORS-blocked — that would cost the
@@ -282,6 +283,21 @@ def _rgb(color):
 
 def _transparent(color):
     return color.transparent if isinstance(color, DefinedColor) else False
+
+
+def _light(led):
+    """LED index to wire name. 1 to 6, the numbering printed on the robot.
+
+    This is the one place that deliberately does NOT copy the official source: it maps
+    an int with light{n+1} over range(0, 6), so on(1) lights the second LED and on(6)
+    falls through to 'all'. Its own docstring example is robot.led.on(1, Color.BLUE)
+    meaning the first LED, so the source and the documented contract disagree — the
+    documented one wins here."""
+    if isinstance(led, LightType):
+        return led.value
+    if isinstance(led, int) and 1 <= led <= 6:
+        return 'light' + str(led)
+    return 'all'
 
 
 class Robot:
@@ -787,17 +803,17 @@ class Led:
 
     def on(self, *args):
         """led.on(ALL_LEDS, BLUE) or led.on(1, BLUE) or led.on(LED1, r, g, b).
-        An int index is 0-based, so on(1, ...) lights light2 — as in the official library."""
+        An int index is 1 to 6, matching the LED numbering on the robot."""
         if len(args) not in (2, 4):
             raise TypeError('must have two or four arguments')
-        if isinstance(args[0], int):
-            light = 'light' + str(args[0] + 1) if args[0] in range(0, 6) else 'all'
-        elif isinstance(args[0], LightType):
-            light = args[0].value
-        else:
-            raise TypeError('first argument must be of type int or LightType')
+        light = _light(args[0])
         if len(args) == 2:
-            r, g, b = _rgb(args[1])
+            if isinstance(args[1], bool):        # True is white, False is off
+                r = g = b = 128 if args[1] else 0
+            elif args[1] is None:
+                r = g = b = 0
+            else:
+                r, g, b = _rgb(args[1])
         else:
             r, g, b = args[1], args[2], args[3]
         self.robot_instance.robot_send({'cmd_id': 'light_set',
@@ -805,10 +821,8 @@ class Led:
 
     def off(self, led=LightType.ALL_LEDS):
         """turn one LED, or all of them, off"""
-        light = led.value if isinstance(led, LightType) else (
-            'light' + str(led + 1) if isinstance(led, int) and led in range(0, 6) else 'all')
         self.robot_instance.robot_send({'cmd_id': 'light_set',
-                                        light: {'r': 0, 'g': 0, 'b': 0}})
+                                        _light(led): {'r': 0, 'g': 0, 'b': 0}})
 
 
 class AiVisionObject:

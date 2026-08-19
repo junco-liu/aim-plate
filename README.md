@@ -60,6 +60,11 @@ robot.stop_all_movement()
 `show_file` —— 协议里没有上传通道，这条路本来就是死的；`color_description` /
 `code_description`；`get_camera_image` —— 画面已经在图版上了。
 
+**与官方源码唯一一处刻意不一致**：`robot.led.on(n, ...)` 的整数编号这里是 **1–6**，
+和机器人上印的编号一致。官方源码写的是 `light{n+1}` 且判定区间是 `range(0, 6)`，于是
+`on(1)` 亮的是第二颗、`on(6)` 会掉进 `else` 变成全部 —— 但它自己的 docstring 例子是
+`robot.led.on(1, Color.BLUE)`，指的是第一颗。源码和文档矛盾，这里以文档为准。
+
 同步阻塞（`robot.move_for(...)` 不用写 `await`）靠 WebAssembly JSPI + `pyodide.ffi.run_sync`
 实现，所以**不需要 Web Worker 和 SharedArrayBuffer**，也就不需要 GitHub Pages 给不了的
 COOP/COEP 响应头。代价是**只有 Chrome / Edge 能跑**（本来 LNA 也只放行它们）。
