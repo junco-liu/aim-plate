@@ -21,7 +21,8 @@ body:not(.rail-py) .pypanel { display: none; }
 /* editor over console, with a draggable rule between them — same grab target as the
    rail's, one axis over. --pylog is all the drag writes. */
 .pypanel { flex: 1; min-height: 0; padding-top: var(--s4);
-  display: grid; grid-template-rows: auto minmax(80px,1fr) 7px var(--pylog); }
+  display: grid; grid-template-rows: auto minmax(80px,1fr) 7px var(--pylog);
+  position: relative; }   /* the completion popup anchors here, see .pyac */
 /* Four controls plus a status line do not fit a 300px rail on one row, and this row
    must never be what makes the page scroll sideways: the controls wrap, and the status
    takes a row of its own rather than truncating a message like "downloading 6 MB". */
@@ -77,6 +78,17 @@ body:not(.rail-py) .pypanel { display: none; }
 #pyHi .s { color: #3E6B2F; }                          /* string */
 #pyHi .n { color: var(--ink2); }                      /* number */
 #pyHi .c { color: var(--off); font-style: italic; }   /* comment */
+
+/* The completion list hangs off the panel, not the editor: .cw clips its overflow, and
+   near the last line the popup has to be allowed to cover the console. */
+.pyac { position: absolute; z-index: 5; margin: 0; padding: 0; list-style: none;
+  max-height: 152px; min-width: 132px; overflow-y: auto;
+  background: var(--paper); border: 1px solid var(--ink);
+  box-shadow: 3px 3px 0 #17181a1f;
+  font: 400 12px/1 var(--mono); }
+.pyac[hidden] { display: none; }
+.pyac li { padding: 5px 9px; cursor: pointer; white-space: nowrap; color: var(--ink); }
+.pyac li.on { background: var(--ink); color: var(--paper); }
 
 .vsplit { appearance: none; background: none; border: 0; padding: 0;
   position: relative; cursor: row-resize; touch-action: none;

@@ -177,6 +177,7 @@ async function loadPy() {
     p.runPython(AIM_PY, { filename: 'aim.py' });
     py = p;
     $('pyState').textContent = `Python ${py.version} 就绪`;
+    acLoadNames();
     pylog('API 与官方 vex 库一致：move_at / move_for / turn / turn_for / turn_to / ' +
           'stop_all_movement · get_x_position / get_y_position / set_xy_position · ' +
           'inertial · screen · kicker · led · sound · vision', 'dim');
@@ -267,18 +268,177 @@ function syncCode() {
 $('pyCode').addEventListener('input', paintCode);
 $('pyCode').addEventListener('scroll', syncCode);
 
-// Tab has to indent or Python is unwritable. Shift+Tab still leaves the field, so the
-// editor stays escapable by keyboard. execCommand is the deprecated one that keeps undo
-// working — setRangeText would wipe the history.
-$('pyCode').addEventListener('keydown', e => {
-  if (e.key !== 'Tab' || e.shiftKey) return;
-  e.preventDefault();
-  if (!document.execCommand('insertText', false, '    ')) {
-    e.target.setRangeText('    ', e.target.selectionStart, e.target.selectionEnd, 'end');
-  }
+/* ── indentation ──────────────────────────────────────────
+   Tab indents, Shift+Tab outdents, both over every line the selection touches. Writing
+   through execCommand keeps the browser's own undo stack — setRangeText would wipe it,
+   and losing ctrl+Z in a code editor is worse than the deprecation warning. */
+const INDENT = '    ';
+
+const replaceRange = (t, from, to, text, caret) => {
+  t.setSelectionRange(from, to);
+  if (!document.execCommand('insertText', false, text)) t.setRangeText(text, from, to, 'end');
+  if (caret) t.setSelectionRange(caret[0], caret[1]);
   paintCode();
+};
+
+// the whole lines the selection touches, so indenting a block does not eat its first line
+const touchedLines = t => {
+  const from = t.value.lastIndexOf('\n', t.selectionStart - 1) + 1;
+  const to = t.value.indexOf('\n', t.selectionEnd);
+  return [from, to === -1 ? t.value.length : to];
+};
+
+function reindent(t, outward) {
+  const [from, to] = touchedLines(t);
+  const before = t.value.slice(from, to);
+  let head = 0, total = 0;
+  const after = before.split('\n').map((line, i) => {
+    if (outward) {
+      const cut = (line.match(/^ {1,4}/) || [''])[0].length;
+      if (!i) head = -cut;
+      total -= cut;
+      return line.slice(cut);
+    }
+    if (!line) return line;                  // never turn a blank line into whitespace
+    if (!i) head = INDENT.length;
+    total += INDENT.length;
+    return INDENT + line;
+  }).join('\n');
+  if (after === before) return;
+  const start = t.selectionStart, end = t.selectionEnd;
+  replaceRange(t, from, to, after,
+               [Math.max(from, start + head), Math.max(from, end + total)]);
+}
+
+$('pyCode').addEventListener('keydown', e => {
+  const t = e.target;
+  if (acKey(e)) return;                      // the completion popup gets first refusal
+
+  // Tab is taken now, so Escape is the way out of the field — a keyboard trap otherwise
+  if (e.key === 'Escape') { t.blur(); return; }
+  if (e.key !== 'Tab') return;
+  e.preventDefault();
+  if (e.shiftKey) reindent(t, true);
+  else if (t.selectionStart !== t.selectionEnd) reindent(t, false);
+  else replaceRange(t, t.selectionStart, t.selectionEnd, INDENT);
 });
 paintCode();
+
+/* ── completion ───────────────────────────────────────────
+   The candidate lists come from dir() inside Python once the runtime is up, so they can
+   never drift from js/robot.js — there is no second copy of the API to keep in step. */
+const AC_PATHS = ['robot', 'robot.inertial', 'robot.screen', 'robot.kicker', 'robot.sound',
+                  'robot.led', 'robot.vision', 'AiVision', 'VisionObject', 'Color', 'Timer'];
+let acMap = {}, acItems = [], acIndex = 0, acFrom = 0, acMeasure;
+
+function acLoadNames() {
+  acMap = JSON.parse(py.runPython(
+    'import json as _acj\n' +
+    "_acout = {'': sorted(n for n in globals() if not n.startswith('_'))}\n" +
+    'for _acp in ' + JSON.stringify(AC_PATHS) + ':\n' +
+    '    try:\n' +
+    "        _acout[_acp] = sorted(n for n in dir(eval(_acp)) if not n.startswith('_'))\n" +
+    '    except Exception:\n' +
+    '        pass\n' +
+    '_acj.dumps(_acout)\n'));
+}
+
+const acHide = () => { $('pyAc').hidden = true; acItems = []; };
+
+// what the caret is completing: a dotted path we know, or a bare name of two-plus chars
+function acContext() {
+  const t = $('pyCode'), upto = t.value.slice(0, t.selectionStart);
+  let m = /([A-Za-z_][\w.]*)\.(\w*)$/.exec(upto);
+  if (m) return { base: m[1], partial: m[2], from: t.selectionStart - m[2].length };
+  m = /([A-Za-z_]\w*)$/.exec(upto);
+  if (m && m[1].length >= 2)
+    return { base: '', partial: m[1], from: t.selectionStart - m[1].length };
+  return null;
+}
+
+/* The caret in pixels, relative to the panel. The face is monospace, but a comment can
+   hold wide glyphs, so measure the real prefix instead of multiplying a character width.
+   The popup hangs off .pypanel rather than the editor because .cw clips its overflow. */
+function acCaretXY() {
+  const t = $('pyCode'), cs = getComputedStyle(t);
+  acMeasure ??= document.createElement('canvas').getContext('2d');
+  acMeasure.font = cs.fontSize + ' ' + cs.fontFamily;
+  const upto = t.value.slice(0, t.selectionStart);
+  const row = upto.split('\n').length - 1;
+  const col = upto.slice(upto.lastIndexOf('\n') + 1);
+  const box = t.getBoundingClientRect(), panel = $('pyPanel').getBoundingClientRect();
+  const lineHeight = parseFloat(cs.lineHeight);
+  return [box.left - panel.left + parseFloat(cs.paddingLeft)
+            + acMeasure.measureText(col).width - t.scrollLeft,
+          box.top - panel.top + parseFloat(cs.paddingTop)
+            + (row + 1) * lineHeight - t.scrollTop,
+          lineHeight];
+}
+
+function acShow() {
+  const ctx = acContext();
+  const pool = ctx && acMap[ctx.base];
+  if (!pool) return acHide();
+  // no short cap: 'robot.' alone has 32 members, and cutting to the alphabetical first
+  // few hides move_at and turn entirely. The list scrolls instead.
+  const hits = pool.filter(n => n.startsWith(ctx.partial)).slice(0, 50);
+  if (!hits.length || (hits.length === 1 && hits[0] === ctx.partial)) return acHide();
+  acItems = hits; acIndex = 0; acFrom = ctx.from;
+  $('pyAc').innerHTML = hits.map((n, i) =>
+    '<li' + (i ? '' : ' class="on"') + '>' + escHtml(n) + '</li>').join('');
+  const [x, y, lineHeight] = acCaretXY();
+  const pop = $('pyAc');
+  pop.style.left = Math.round(x) + 'px';
+  pop.style.top = Math.round(y) + 'px';
+  pop.hidden = false;
+  /* Measure once laid out, then pin it inside the panel. Below the caret is the default;
+     near the bottom it flips above the line. Both axes end in a hard clamp, because the
+     caret offset is computed from the text and a stale scrollTop can put it anywhere. */
+  const box = pop.getBoundingClientRect();
+  const panel = $('pyPanel').getBoundingClientRect();
+  const fit = (v, size, limit) => Math.max(0, Math.min(v, limit - size));
+  pop.style.left = Math.round(fit(x, box.width, panel.width)) + 'px';
+  pop.style.top = Math.round(fit(y + box.height > panel.height ? y - box.height - lineHeight : y,
+                                 box.height, panel.height)) + 'px';
+}
+
+const acMark = () => [...$('pyAc').children].forEach((li, i) => {
+  li.classList.toggle('on', i === acIndex);
+  if (i === acIndex) li.scrollIntoView({ block: 'nearest' });
+});
+
+function acAccept() {
+  const t = $('pyCode');
+  replaceRange(t, acFrom, t.selectionStart, acItems[acIndex]);
+  acHide();
+}
+
+// true when the popup consumed the key, so the indent handler stays out of the way
+function acKey(e) {
+  if ($('pyAc').hidden || !acItems.length) return false;
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    acIndex = (acIndex + (e.key === 'ArrowDown' ? 1 : acItems.length - 1)) % acItems.length;
+    acMark();
+    return true;
+  }
+  if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); acAccept(); return true; }
+  if (e.key === 'Escape') { e.preventDefault(); acHide(); return true; }
+  return false;
+}
+
+// mousedown, not click: a click lands after the textarea has already lost focus
+$('pyAc').addEventListener('mousedown', e => {
+  const li = e.target.closest('li');
+  if (!li) return;
+  e.preventDefault();
+  acIndex = [...$('pyAc').children].indexOf(li);
+  acAccept();
+});
+$('pyCode').addEventListener('input', acShow);
+$('pyCode').addEventListener('blur', acHide);
+$('pyCode').addEventListener('scroll', acHide);
+$('pyCode').addEventListener('click', acHide);
 
 $('pyCopy').onclick = async () => {
   // the async clipboard wants a permission some embedders refuse outright; selecting the

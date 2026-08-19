@@ -69,6 +69,12 @@ robot.led.off((LED3, LED4))
 robot.vision.get_data((ALL_TAGS, ALL_CARGO))    # 命中任一即算
 ```
 
+编辑器的键盘：`Tab` 缩进、`Shift+Tab` 回退，两者都作用于选区触到的每一行；
+`Tab` 被占用了，所以 **`Esc` 是离开输入框的出口**（不留这个口就是个键盘陷阱）。
+输入 `robot.` 会弹补全，`↑` `↓` 选、`Enter` 或 `Tab` 采纳、`Esc` 关掉。
+**补全名单是运行时从 Python 的 `dir()` 拉的**，不是手写表 —— 所以它不可能和
+`js/robot.js` 走歧，没有第二份 API 清单需要维护。
+
 `get_data` 的筛选参数是官方那套**描述符**（`Tagdesc` / `AiObjdesc` / `ObjDesc` /
 `Colordesc` / `Codedesc`），现成的挂在 `VisionObject` 和 `AiVision` 上：`ALL_VISION`
 `ALL_TAGS` `ALL_COLORS` `ALL_CARGO` `TAG0`–`TAG37` `SPORTS_BALL` `BLUE_BARREL`
