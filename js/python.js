@@ -310,9 +310,53 @@ function reindent(t, outward) {
                [Math.max(from, start + head), Math.max(from, end + total)]);
 }
 
+/* ── bracket and quote pairing ────────────────────────────
+   Open one and the closer comes with it; type the closer that is already there and the
+   caret steps over it instead of doubling it; backspace inside an empty pair takes both.
+   With text selected, an opener wraps it. */
+const PAIRS = { '(': ')', '[': ']', '{': '}' };
+const QUOTES = "'\"";
+const CLOSERS = ')]}';
+
+function autoPair(e, t) {
+  const k = e.key, start = t.selectionStart, end = t.selectionEnd;
+  const next = t.value[end] ?? '', prev = t.value[start - 1] ?? '';
+
+  if (e.key === 'Backspace' && start === end && start > 0) {
+    const left = t.value[start - 1], right = t.value[start] ?? '';
+    if (PAIRS[left] === right || (QUOTES.includes(left) && left === right)) {
+      e.preventDefault();
+      replaceRange(t, start - 1, start + 1, '');
+      return true;
+    }
+    return false;
+  }
+  if (k.length !== 1) return false;
+  const opener = PAIRS[k] || (QUOTES.includes(k) ? k : null);
+
+  if (start !== end && opener) {             // wrap the selection
+    e.preventDefault();
+    replaceRange(t, start, end, k + t.value.slice(start, end) + opener, [start + 1, end + 1]);
+    return true;
+  }
+  if ((CLOSERS.includes(k) || QUOTES.includes(k)) && next === k && start === end) {
+    e.preventDefault();                      // step over the closer we already inserted
+    t.setSelectionRange(end + 1, end + 1);
+    return true;
+  }
+  if (!opener || start !== end) return false;
+  // Don't close against existing text: inserting ( before x should not give ()x).
+  // For quotes, also stay out of the way of an apostrophe typed after a word.
+  if (QUOTES.includes(k) ? /[\w'"]/.test(prev) : /[\w'"([{]/.test(next)) return false;
+  e.preventDefault();
+  replaceRange(t, start, end, k + opener, [start + 1, start + 1]);
+  return true;
+}
+
 $('pyCode').addEventListener('keydown', e => {
   const t = e.target;
   if (acKey(e)) return;                      // the completion popup gets first refusal
+  if (autoPair(e, t)) return;
 
   // Tab is taken now, so Escape is the way out of the field — a keyboard trap otherwise
   if (e.key === 'Escape') { t.blur(); return; }
@@ -332,9 +376,15 @@ const AC_PATHS = ['robot', 'robot.inertial', 'robot.screen', 'robot.kicker', 'ro
 let acMap = {}, acItems = [], acIndex = 0, acFrom = 0, acMeasure;
 
 function acLoadNames() {
+  // The bare-name pool is the robot API plus the language itself: keyword.kwlist and
+  // dir(builtins) rather than a hand-kept list, so for/while/def/print/range come from
+  // the interpreter that will actually run the code.
   acMap = JSON.parse(py.runPython(
-    'import json as _acj\n' +
-    "_acout = {'': sorted(n for n in globals() if not n.startswith('_'))}\n" +
+    'import json as _acj, keyword as _ack, builtins as _acb\n' +
+    "_acout = {'': sorted(set(\n" +
+    "    [n for n in globals() if not n.startswith('_')]\n" +
+    '    + _ack.kwlist\n' +
+    "    + [n for n in dir(_acb) if not n.startswith('_')]))}\n" +
     'for _acp in ' + JSON.stringify(AC_PATHS) + ':\n' +
     '    try:\n' +
     "        _acout[_acp] = sorted(n for n in dir(eval(_acp)) if not n.startswith('_'))\n" +
@@ -348,6 +398,8 @@ const acHide = () => { $('pyAc').hidden = true; acItems = []; };
 // what the caret is completing: a dotted path we know, or a bare name of two-plus chars
 function acContext() {
   const t = $('pyCode'), upto = t.value.slice(0, t.selectionStart);
+  // a range selection is not a typing context — block indent would otherwise pop a list
+  if (t.selectionStart !== t.selectionEnd) return null;
   let m = /([A-Za-z_][\w.]*)\.(\w*)$/.exec(upto);
   if (m) return { base: m[1], partial: m[2], from: t.selectionStart - m[2].length };
   m = /([A-Za-z_]\w*)$/.exec(upto);

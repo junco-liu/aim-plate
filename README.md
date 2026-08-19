@@ -71,9 +71,15 @@ robot.vision.get_data((ALL_TAGS, ALL_CARGO))    # 命中任一即算
 
 编辑器的键盘：`Tab` 缩进、`Shift+Tab` 回退，两者都作用于选区触到的每一行；
 `Tab` 被占用了，所以 **`Esc` 是离开输入框的出口**（不留这个口就是个键盘陷阱）。
-输入 `robot.` 会弹补全，`↑` `↓` 选、`Enter` 或 `Tab` 采纳、`Esc` 关掉。
-**补全名单是运行时从 Python 的 `dir()` 拉的**，不是手写表 —— 所以它不可能和
-`js/robot.js` 走歧，没有第二份 API 清单需要维护。
+输入 `robot.` 或任意两个字符会弹补全，`↑` `↓` 选、`Enter` 或 `Tab` 采纳、`Esc` 关掉。
+**补全名单是运行时从 Python 拉的**：机器人 API 用 `dir()`，语言本身用
+`keyword.kwlist` 和 `dir(builtins)` —— `for` `while` `def` `import` `print` `range` 都在里面，
+共 417 项。都不是手写表，所以不可能和 `js/robot.js` 或解释器走歧。
+
+括号和引号自动配对：打 `(` `[` `{` `"` `'` 自动补右半并把插入符放中间；右半已在那里时
+再打一遍是跳过而不是重复；空对里退格两边一起删；选中文字后打左半会把选区包起来。
+插入符后面紧贴着文字时不自动补（`fx` 前面打 `(` 不会得到 `()fx)`），词后的撇号也不补。
+三引号没有特殊处理。
 
 `get_data` 的筛选参数是官方那套**描述符**（`Tagdesc` / `AiObjdesc` / `ObjDesc` /
 `Colordesc` / `Codedesc`），现成的挂在 `VisionObject` 和 `AiVision` 上：`ALL_VISION`
