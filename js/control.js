@@ -43,7 +43,9 @@ $('scrClear').onclick = () => {
    model_detection false and the robot stops producing those objects at all. */
 
 const SIGS = {
-  tag:          { label: 'AprilTag', c: '#E0A800' },
+  // AprilTag starts unticked because that is the robot's own default — it is not
+  // detecting tags until asked. Ticking the box sends tag_detection true.
+  tag:          { label: 'AprilTag', c: '#E0A800', off: true },
   Robot:        { label: '机器人',   c: '#B23BA6' },
   BlueBarrel:   { label: '蓝桶',     c: '#2F6FD0' },
   OrangeBarrel: { label: '橙桶',     c: '#DB6A1E' },
@@ -52,7 +54,7 @@ const SIGS = {
 const MODEL_SIGS = ['Robot', 'BlueBarrel', 'OrangeBarrel', 'SportsBall'];
 
 $('sigs').innerHTML = Object.entries(SIGS).map(([k, v]) => `
-  <label class="sig"><input type="checkbox" class="need" data-sig="${k}" disabled checked>
+  <label class="sig"><input type="checkbox" class="need" data-sig="${k}" disabled${v.off ? '' : ' checked'}>
     <i style="background:${v.c}"></i><span>${v.label}</span><b id="n_${k}">0</b></label>`).join('');
 
 const sigOn = k => $('sigs').querySelector(`[data-sig="${k}"]`).checked;
