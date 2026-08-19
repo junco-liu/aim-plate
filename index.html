@@ -25,6 +25,8 @@
   --off:    #8B918A;   /* disabled text — 3.4:1, off but still readable */
 
   --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:20px; --s6:24px;
+  --rail: 300px;  /* the drags rewrite these two, nothing else */
+  --pylog: 150px;
   --tap: 40px;
   --capH: 32px;   /* fixed, so the plate can reserve it exactly */
   --fast: 130ms cubic-bezier(.2,.8,.3,1);
@@ -123,6 +125,11 @@ body.live #ip, body.live #connect { display: none; }
 .readout .m.hostm { display: none; }
 body.live .readout .m.hostm { display: inline; }
 
+/* the repo link is a colophon note, not a control — same mono voice as the readout */
+.ghl { font: 400 12.5px/1 var(--mono); letter-spacing: .04em; color: var(--ink2);
+  text-decoration: none; white-space: nowrap; }
+.ghl:hover { color: var(--press); text-decoration: underline; }
+
 /* ── controls, printed rather than styled ───────────────── */
 input[type=text] {
   width: 150px; height: var(--tap); padding: 0 11px;
@@ -162,7 +169,24 @@ input::placeholder { color: #9BA09A; }
         stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
 
 /* ── columns ────────────────────────────────────────────── */
-.cols { display: grid; grid-template-columns: minmax(0,1fr) 300px; flex: 1; min-height: 0; }
+/* The rail's width is the reader's, not a constant: a page with the code editor
+   open wants a wide margin, one that's just driving wants none. --rail is the
+   only thing the drag writes. */
+.cols { display: grid; grid-template-columns: minmax(0,1fr) 7px var(--rail); flex: 1; min-height: 0; }
+
+/* the splitter draws the rule the rail used to own, with a fat invisible grab target */
+.split { appearance: none; background: none; border: 0; padding: 0;
+  position: relative; cursor: col-resize; touch-action: none;
+  -webkit-tap-highlight-color: transparent; }
+.split::before { content: ''; position: absolute; top: 0; bottom: 0; left: 50%;
+  width: 1px; background: var(--rule); transform: translateX(-50%);
+  transition: background var(--fast), width var(--fast); }
+.split:hover::before, .split:focus-visible::before, body.dragging .split::before {
+  background: var(--press); width: 2px; }
+.split:focus-visible { outline: none; }
+body.dragging { user-select: none; }   /* the cursor is set from the splitter itself */
+/* the plate must not fight the pointer while the rule is being dragged over it */
+body.dragging .figure, body.dragging #scrCv { pointer-events: none; }
 
 /* ── the plate ──────────────────────────────────────────── */
 .plateWrap { padding: var(--s5); display: flex; flex-direction: column;
@@ -367,8 +391,96 @@ body:not(.m-pen) .forPen, body:not(.m-img) .forImg, body:not(.m-emo) .forEmo { d
 .bar i { display: block; height: 100%; background: var(--press); width: 0; }
 
 /* ── the rail: hanging head + full rule, no cards ───────── */
-.rail { border-left: 1px solid var(--rule); padding: 0 var(--s5) var(--s5);
+.rail { padding: 0 var(--s5) var(--s5);   /* the splitter owns the left rule now */
   overflow-y: auto; display: flex; flex-direction: column; }
+
+/* The rail has two faces. 控制 is the tool groups; 代码 replaces them wholesale —
+   in that face there is nothing but the editor and its console, no controls at all. */
+.railtabs { display: flex; gap: var(--s4); position: sticky; top: 0; z-index: 2;
+  margin: 0 calc(var(--s5) * -1); padding: 0 var(--s5);
+  background: var(--paper); border-bottom: 1px solid var(--rule); }
+.rtab { appearance: none; background: none; border: 0; border-bottom: 2px solid transparent;
+  margin-bottom: -1px; padding: 13px 0; cursor: pointer;
+  font: 650 11px/1 var(--sans); letter-spacing: .06em; text-transform: uppercase;
+  color: var(--ink2); -webkit-tap-highlight-color: transparent;
+  transition: color var(--fast), border-color var(--fast); }
+.rtab.on { color: var(--ink); border-bottom-color: var(--ink); }
+.rtab:focus-visible { outline: 2px solid var(--press); outline-offset: 2px; }
+
+body.rail-py .rail > .grp, body.rail-py .rail > details.log { display: none; }
+body:not(.rail-py) .pypanel { display: none; }
+
+/* editor over console, with a draggable rule between them — same grab target as the
+   rail's, one axis over. --pylog is all the drag writes. */
+.pypanel { flex: 1; min-height: 0; padding-top: var(--s4);
+  display: grid; grid-template-rows: auto minmax(80px,1fr) 7px var(--pylog); }
+.pybar { display: flex; gap: 7px; align-items: center; margin-bottom: var(--s3); }
+.pybar .btn { height: 32px; padding: 0 11px; font-size: 12px; }
+.pybar .ico { width: 32px; padding: 0; flex: none; }   /* or the state text squashes it */
+.pystate { margin-left: auto; padding-left: var(--s2);
+  font: 400 10px/1.4 var(--mono); color: var(--ink2); text-align: right; }
+
+/* A transparent textarea over a highlighted <pre>: the textarea keeps every native
+   editing behaviour (undo, IME, selection, spellcheck off) and the <pre> only paints.
+   Both must share font, padding and tab-size exactly or the caret drifts off the glyphs. */
+.editor { display: grid; grid-template-columns: auto minmax(0,1fr); min-height: 0;
+  border: 1px solid var(--rule); background: #fff; overflow: hidden; }
+.editor:focus-within { border-color: var(--press); box-shadow: inset 0 0 0 1px var(--press); }
+.gut { overflow: hidden; user-select: none; text-align: right;
+  padding: 9px 8px 9px 10px; border-right: 1px solid var(--rule-2);
+  background: var(--paper); color: var(--off); }
+.cw { position: relative; overflow: hidden; }
+.gut, #pyHi, #pyCode {
+  margin: 0; font: 400 12.5px/1.65 var(--mono); tab-size: 4; white-space: pre;
+}
+#pyHi, #pyCode { position: absolute; inset: 0; padding: 9px 10px; border: 0; }
+#pyHi { overflow: hidden; pointer-events: none; color: var(--ink); }
+#pyCode { overflow: auto; resize: none; background: none; color: transparent;
+  -webkit-text-fill-color: transparent; caret-color: var(--ink); }
+#pyCode:focus { outline: none; }
+#pyCode::selection { background: #C9DAEC; }
+
+/* The copy button sits inside the box it copies, clear of the scrollbar, and stays out
+   of the way until the pointer is over the code. Touch has no hover, so there it is
+   simply always there — and keyboard focus reveals it either way. */
+/* .btn.quiet already carries the muted-until-hover treatment — restating colour here
+   would out-specify .btn:hover and leave a black icon on the black hover fill. */
+#pyCopy { position: absolute; top: 6px; right: 14px; z-index: 2;
+  width: 24px; height: 24px; padding: 0; }
+#pyCopy .icon { width: 13px; height: 13px; }
+@media (hover: hover) {
+  #pyCopy { opacity: 0; transition: opacity var(--fast), color var(--fast),
+                                    border-color var(--fast), background var(--fast); }
+  .editor:hover #pyCopy, #pyCopy:focus-visible { opacity: 1; }
+}
+/* Code is its own surface, not the paper — one extra hue for strings, and nothing more.
+   Everything else is carried by the existing ink / press pair plus weight and italic. */
+#pyHi .k { color: var(--press); font-weight: 600; }   /* keyword */
+#pyHi .b { font-weight: 600; }                        /* builtin, robot */
+#pyHi .s { color: #3E6B2F; }                          /* string */
+#pyHi .n { color: var(--ink2); }                      /* number */
+#pyHi .c { color: var(--off); font-style: italic; }   /* comment */
+
+.vsplit { appearance: none; background: none; border: 0; padding: 0;
+  position: relative; cursor: row-resize; touch-action: none;
+  -webkit-tap-highlight-color: transparent; }
+.vsplit::before { content: ''; position: absolute; left: 0; right: 0; top: 50%;
+  height: 1px; background: var(--rule); transform: translateY(-50%);
+  transition: background var(--fast), height var(--fast); }
+.vsplit:hover::before, .vsplit:focus-visible::before, body.dragging .vsplit::before {
+  background: var(--press); height: 2px; }
+.vsplit:focus-visible { outline: none; }
+
+#pyLog { min-height: 0; margin: 0; overflow: auto; padding-top: 9px;
+  font: 400 11px/1.7 var(--mono); color: var(--ink);
+  white-space: pre-wrap; word-break: break-all; }
+#pyLog .err { color: var(--stop); }
+#pyLog .dim { color: var(--ink2); }
+
+/* Full screen is a plain fixed box, not the Fullscreen API: it also works inside an
+   iframe and needs no permission, and Esc still closes it. */
+.pypanel.full { position: fixed; inset: 0; z-index: 60;
+  padding: var(--s4) var(--s5); background: var(--paper); }
 .grp { padding-top: 17px; }
 .grp + .grp { margin-top: 15px; border-top: 1px solid var(--rule); }
 /* the hanging head is also the disclosure control — <details> does the work, no JS */
@@ -458,14 +570,6 @@ details.log[open] summary .icon { transform: rotate(90deg); }
   gap: 8px;
 }
 
-.site-footer a {
-  color: var(--press);
-  text-decoration: none;
-}
-
-.site-footer a:hover {
-  text-decoration: underline;
-}
 
 /* ── phone: real reflow ─────────────────────────────────── */
 @media (max-width: 899px) {
@@ -473,7 +577,11 @@ details.log[open] summary .icon { transform: rotate(90deg); }
   .sheet { grid-template-columns: 1fr; }          /* the shoulder folds away … */
   .shoulder { display: none; }                    /* … the pad's centre stop carries it */
   .cols { grid-template-columns: 1fr; }
+  .split { display: none; }                       /* one column — nothing to split */
   header { gap: var(--s3); padding: var(--s3) var(--s4) 10px; }
+  /* The repo link rides the title's row here rather than the far right corner: this
+     header wraps into rows, and giving the link its own auto margin only steals the
+     slack the readout needs. "Top right" is a desktop idea. */
   .readout { order: 2; gap: var(--s4); }
   .field { order: 3; width: 100%; }
   .field #ip { flex: 1; width: auto; }
@@ -485,7 +593,9 @@ details.log[open] summary .icon { transform: rotate(90deg); }
   .capbar { gap: var(--s2); padding: 0 8px; }
   .capbar .sp { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .rail { display: flex; border-left: 0; padding: 0 var(--s4) var(--s4); }
+  .railtabs { order: -2; margin: 0 calc(var(--s4) * -1); padding: 0 var(--s4); }
   .grp.drive { order: -1; }                       /* driving first, in thumb reach */
+  .pypanel { min-height: 470px; }                 /* no column height to inherit here */
   .pad .btn { height: 56px; }
 }
 
@@ -495,7 +605,21 @@ details.log[open] summary .icon { transform: rotate(90deg); }
    body's `min-height` alone leaves it indefinite and the plate collapses to 0.
    Guarded to ≥900px: on a phone the page must stay free to scroll. */
 @media (min-width: 900px) {
-  body { height: 100dvh; }
+  /* The sheet takes the viewport row and the footer hugs — not the other way round.
+     With `auto 1fr` the sheet was content-sized, so the plate's height came from
+     whichever column happened to be taller: switch the rail to a shorter face and the
+     whole page shrank with it. minmax(0,·) lets the rail scroll instead of pushing. */
+  body { height: 100dvh; grid-template-rows: minmax(0,1fr) auto; }
+
+  /* The head rule is chrome, not a control surface: its own input and buttons run
+     smaller than the rail's, which stay thumb-sized. On a phone they don't — that
+     block leaves --tap alone precisely because everything up there is a touch target. */
+  header { gap: var(--s3); padding: 8px var(--s5) 7px; }
+  header .btn { height: 30px; padding: 0 11px; font-size: 12.5px; }
+  header input[type=text] { height: 30px; width: 132px; padding: 0 9px; font-size: 12.5px; }
+  .title { font-size: 14px; }
+  .readout { gap: var(--s4); }
+  .readout .m { font-size: 11.5px; }
   .page, .cols, .plateWrap { min-height: 0; }
   .stageArea { flex: 1; min-height: 0; width: 100%; container-type: size; }
   .plateBox { width: min(100cqw, calc((100cqh - var(--capH)) * 4 / 3)); max-width: none; }
@@ -518,6 +642,13 @@ details.log[open] summary .icon { transform: rotate(90deg); }
   <g id="i-bulb"><path d="M9.5 18.5h5"/><path d="M10.5 21.5h3"/>
     <path d="M12 2.5a6 6 0 0 0-3.4 10.9c.5.4.9 1 .9 1.7v.4h5v-.4c0-.7.4-1.3.9-1.7A6 6 0 0 0 12 2.5z"/></g>
   <g id="i-chevron"><path d="m9 5 7 7-7 7"/></g>
+  <g id="i-play"><path d="M6.5 4.5 19 12 6.5 19.5z"/></g>
+  <g id="i-copy"><rect x="9" y="9" width="11.5" height="11.5" rx="2"/>
+    <path d="M15 6.5V5.5a2 2 0 0 0-2-2H5.5a2 2 0 0 0-2 2V13a2 2 0 0 0 2 2h1"/></g>
+  <g id="i-expand"><path d="M14.5 3.5h6v6"/><path d="M20.5 3.5 13 11"/>
+    <path d="M9.5 20.5h-6v-6"/><path d="M3.5 20.5 11 13"/></g>
+  <g id="i-shrink"><path d="M20.5 9.5h-6v-6"/><path d="M14.5 9.5 21.5 2.5"/>
+    <path d="M3.5 14.5h6v6"/><path d="M9.5 14.5 2.5 21.5"/></g>
   <g id="i-warn"><path d="M12 3.5 1.8 20.5h20.4z"/><path d="M12 9.5v5"/><path d="M12 17.6v.1"/></g>
 </defs></svg>
 
@@ -550,9 +681,12 @@ details.log[open] summary .icon { transform: rotate(90deg); }
         <span class="m"><u>电量</u><b id="battery">—</b></span>
         <span class="m"><u>朝向</u><b id="heading">—</b></span>
       </div>
+
+      <a class="ghl" href="https://github.com/junco-liu/AIM_Websocket_online"
+         target="_blank" rel="noopener noreferrer">GitHub ↗</a>
     </header>
 
-    <div class="cols">
+    <div class="cols" id="cols">
       <div class="plateWrap">
         <div class="stageArea">
           <div class="plateBox">
@@ -637,7 +771,16 @@ details.log[open] summary .icon { transform: rotate(90deg); }
         </details>
       </div>
 
+      <button class="split" id="split" role="separator" aria-orientation="vertical"
+              aria-label="拖动调整控制栏宽度" aria-valuemin="240" aria-valuemax="640"
+              aria-valuenow="300"></button>
+
       <div class="rail">
+        <div class="railtabs" role="tablist" aria-label="控制栏内容">
+          <button class="rtab on" id="rtCtl" role="tab" aria-selected="true">控制</button>
+          <button class="rtab" id="rtPy" role="tab" aria-selected="false">代码</button>
+        </div>
+
         <details class="grp drive" open>
           <summary><svg class="icon" viewBox="0 0 24 24"><use href="#i-chevron"/></svg><h2>移动 <u>DRIVE</u></h2></summary>
           <div class="pad">
@@ -764,22 +907,50 @@ details.log[open] summary .icon { transform: rotate(90deg); }
           <summary><svg class="icon" viewBox="0 0 24 24"><use href="#i-chevron"/></svg>活动日志</summary>
           <pre id="log"></pre>
         </details>
+
+        <div class="pypanel" id="pyPanel">
+          <div class="pybar">
+            <button class="btn" id="pyRun" disabled>
+              <svg class="icon" viewBox="0 0 24 24"><use href="#i-play"/></svg>运行</button>
+            <button class="btn stop" id="pyStop" disabled>停止</button>
+            <span class="pystate" id="pyState">首次切到这里会下载 Python 运行时</span>
+            <button class="btn ico" id="pyFull" title="全屏" aria-label="全屏" aria-pressed="false">
+              <svg class="icon" viewBox="0 0 24 24"><use href="#i-expand" id="pyFullIcon"/></svg></button>
+          </div>
+
+          <div class="editor">
+            <div class="gut" id="pyGut" aria-hidden="true">1</div>
+            <div class="cw">
+              <button class="btn quiet" id="pyCopy" title="复制代码" aria-label="复制代码">
+                <svg class="icon" viewBox="0 0 24 24"><use href="#i-copy"/></svg></button>
+              <pre id="pyHi" aria-hidden="true"></pre>
+              <textarea id="pyCode" spellcheck="false" autocapitalize="off" autocorrect="off"
+                    autocomplete="off" aria-label="Python 代码">robot.light('all', 0, 80, 160)
+
+for i in range(4):
+    robot.drive(angle=0, speed=120)
+    robot.sleep(1)
+    robot.turn(rate=90)
+    robot.sleep(1)
+
+robot.stop()
+print("走完一圈")
+</textarea>
+            </div>
+          </div>
+
+          <button class="vsplit" id="vsplit" role="separator" aria-orientation="horizontal"
+                  aria-label="拖动调整控制台高度" aria-valuemin="60" aria-valuemax="600"
+                  aria-valuenow="150"></button>
+
+          <pre id="pyLog"></pre>
+        </div>
       </div>
     </div>
   </div>
 </div>
 
 <footer class="site-footer">
-  <div class="footer-line">
-    <span>AIM WebSocket Online</span>
-    <span class="sep">·</span>
-    <a href="https://github.com/junco-liu/AIM_Websocket_online"
-       target="_blank"
-       rel="noopener noreferrer">
-      GitHub Repository ↗
-    </a>
-  </div>
-
   <div class="footer-line">
     <span>Powered by Junco.</span>
     <span>© 2026 VEX Academy</span>
@@ -829,6 +1000,7 @@ function setState(cls, text) {
   document.querySelectorAll('.need').forEach(b => b.disabled = !live);
   $('scrSend').disabled = !live || busy || !scrOps.length;
   $('emoOff').disabled = !live || emoOn === null;
+  pySync();   // 运行 depends on the runtime being loaded too, not just on the link
 }
 
 function connect() {
@@ -1480,6 +1652,262 @@ addEventListener('keyup', ev => {
 });
 addEventListener('blur', () => { if (held) { held = null; quiet(halt()); } });
 addEventListener('pagehide', closeAll);   // a closed tab must stop the stream too
+
+/* ── the two draggable rules ──────────────────────────────
+   The rail's width and the console's height are the reader's, not constants: writing
+   code wants a wide margin and a short console, plain driving wants neither. Each is a
+   single CSS variable — dragged, arrow-keyed, and remembered. */
+function splitter(id, cssVar, store, min, max, dflt, measure, steps) {
+  const el = $(id);
+  let v;
+  const set = px => {
+    v = Math.max(min, Math.min(max, Math.round(px)));
+    document.documentElement.style.setProperty(cssVar, v + 'px');
+    el.setAttribute('aria-valuenow', v);
+    try { localStorage.setItem(store, v); } catch {}   // private mode throws on write
+  };
+  set(+localStorage.getItem(store) || dflt);
+
+  // the drag listens on the window, not the handle: pointer capture is the tidier way
+  // but it drops the drag the moment the pointer isn't a real one, and the pointer
+  // routinely travels past the handle's own 7px anyway
+  el.addEventListener('pointerdown', e => {
+    e.preventDefault();                     // or the drag turns into a text selection
+    body.classList.add('dragging');
+    body.style.cursor = getComputedStyle(el).cursor;
+    const move = ev => set(measure(ev));
+    const end = () => {
+      body.classList.remove('dragging'); body.style.cursor = '';
+      removeEventListener('pointermove', move);
+      removeEventListener('pointerup', end);
+      removeEventListener('pointercancel', end);
+    };
+    addEventListener('pointermove', move);
+    addEventListener('pointerup', end);
+    addEventListener('pointercancel', end);
+  });
+  el.addEventListener('keydown', e => {
+    if (!(e.key in steps)) return;
+    e.preventDefault();
+    set(v + steps[e.key]);
+  });
+}
+
+splitter('split', '--rail', 'aimRail', 240, 640, 300,
+  e => $('cols').getBoundingClientRect().right - e.clientX,
+  { ArrowLeft: 20, ArrowRight: -20 });
+
+splitter('vsplit', '--pylog', 'aimPyLog', 60, 600, 150,
+  e => $('pyPanel').getBoundingClientRect().bottom - e.clientY,
+  { ArrowUp: 20, ArrowDown: -20 });
+
+/* ── Python ───────────────────────────────────────────────
+   Pyodide is ~6MB, so it loads the first time someone opens the 代码 face and never
+   before. Python is written straight — robot.drive(...), no await — because JSPI lets
+   pyodide.ffi.run_sync suspend the Python stack on a JS promise. That means no worker
+   and no SharedArrayBuffer, hence no COOP/COEP headers, which GitHub Pages can't serve.
+   Every call still goes through send(), the same one-question-one-answer socket the
+   buttons use — Python is another caller, not another path. */
+const PY_URL = 'https://cdn.jsdelivr.net/pyodide/v314.0.5/full/pyodide.mjs';
+const PY_STOP = '__aim_stop__';
+let py = null, pyLoading = false, pyAbort = false, pyRunning = false;
+
+const pylog = (m, cls) => {
+  const el = document.createElement('span');
+  if (cls) el.className = cls;
+  el.textContent = m + '\n';
+  $('pyLog').append(el);
+  $('pyLog').scrollTop = 1e9;
+};
+
+function pySync() {
+  $('pyRun').disabled = !py || pyRunning || !body.classList.contains('live');
+  $('pyStop').disabled = !pyRunning;
+}
+
+/* The bridge. Named without leading underscores on purpose: inside a Python class body
+   `js.__aim_cmd` gets name-mangled to `js._Robot__aim_cmd` and fails at runtime. */
+window.aimCmd = async json => {
+  if (pyAbort) throw new Error(PY_STOP);
+  const r = await send(JSON.parse(json));
+  if (pyAbort) throw new Error(PY_STOP);      // 停止 was pressed while the robot answered
+  return JSON.stringify(r);
+};
+
+// never time.sleep: on the main thread that freezes the event loop and 停止 stops responding
+window.aimSleep = async sec => {
+  const end = performance.now() + sec * 1000;
+  while (performance.now() < end) {
+    if (pyAbort) throw new Error(PY_STOP);
+    await new Promise(r => setTimeout(r, Math.min(50, end - performance.now())));
+  }
+};
+
+const PY_GLUE = `
+import json, js
+from pyodide.ffi import run_sync
+
+class Robot:
+    def _c(self, **kw): return json.loads(run_sync(js.aimCmd(json.dumps(kw))))
+    def drive(self, angle=0, speed=120): self._c(cmd_id='drive', angle=angle, speed=speed, stacking_type=0)
+    def turn(self, rate=90): self._c(cmd_id='turn', turn_rate=rate, stacking_type=0)
+    def stop(self):
+        self._c(cmd_id='drive', angle=0, speed=0, stacking_type=0)
+        self._c(cmd_id='turn', turn_rate=0, stacking_type=0)
+    def kick(self, level='medium'): self._c(cmd_id='kick_' + level)
+    def light(self, n, r, g, b):
+        self._c(cmd_id='light_set', **{('all' if n == 'all' else 'light%d' % n): {'r': r, 'g': g, 'b': b}})
+    def emoji(self, name, look=0): self._c(cmd_id='show_emoji', name=name, look=look)
+    def hide_emoji(self): self._c(cmd_id='hide_emoji')
+    def sleep(self, sec): run_sync(js.aimSleep(sec))
+
+robot = Robot()
+`;
+
+async function loadPy() {
+  if (py || pyLoading) return;
+  pyLoading = true;
+  $('pyState').textContent = '下载 Python 运行时（约 6 MB）…';
+  try {
+    const { loadPyodide } = await import(PY_URL);
+    const p = await loadPyodide({ stdout: m => pylog(m), stderr: m => pylog(m, 'err') });
+    // JSPI is what lets Python call the robot without await. There is no second-best
+    // here, only a different dialect users would have to learn — so say so instead.
+    await p.runPythonAsync('from pyodide.ffi import run_sync\nimport js\nrun_sync(js.Promise.resolve(1))');
+    p.runPython(PY_GLUE);
+    py = p;
+    $('pyState').textContent = `Python ${py.version} 就绪`;
+    pylog('robot.drive(angle, speed) · turn(rate) · stop() · sleep(秒) · kick(轻重) · ' +
+          'light(编号, r, g, b) · emoji(名字)', 'dim');
+  } catch (e) {
+    $('pyState').textContent = '运行时加载失败';
+    pylog(String(e?.message ?? e).split('\n').pop(), 'err');
+    pylog('需要 Chrome / Edge（WebAssembly JSPI），并且能访问 cdn.jsdelivr.net。', 'dim');
+  }
+  pyLoading = false;
+  pySync();
+}
+
+$('pyRun').onclick = async () => {
+  if (!py) return;
+  pyAbort = false; pyRunning = true;
+  $('pyLog').textContent = '';
+  pySync();
+  const t0 = performance.now();
+  try {
+    py.runPython(PY_GLUE);                 // a fresh robot each run — a crashed one leaves nothing behind
+    await py.runPythonAsync($('pyCode').value);
+    pylog(`✓ 完成 ${Math.round(performance.now() - t0)}ms`, 'dim');
+  } catch (e) {
+    const msg = String(e?.message ?? e);
+    if (msg.includes(PY_STOP)) pylog(`■ 已停止 ${Math.round(performance.now() - t0)}ms`, 'dim');
+    else {
+      // a traceback carries Pyodide's own frames too; only the user's code and the
+      // exception itself are worth showing
+      const lines = msg.split('\n').filter(Boolean);
+      pylog([...lines.filter(l => l.includes('<exec>')), lines.at(-1)].join('\n'), 'err');
+      log('Python 程序出错，已急停', true);
+    }
+  }
+  // drive/turn are continuous commands: the program ending must mean the robot stopping,
+  // whether it finished, crashed, or was stopped by hand
+  await quiet(halt());
+  pylog('⊘ 已急停（drive 0 / turn 0）', 'dim');
+  pyRunning = false;
+  pySync();
+};
+
+// don't wait for Python to unwind — it may be mid-round-trip. Halt now; the run's own
+// finish halts again. That redundancy is deliberate, same as the rail's stop bar.
+$('pyStop').onclick = () => { pyAbort = true; quiet(halt()); pylog('停止…', 'dim'); };
+
+/* ── the editor ───────────────────────────────────────────
+   A transparent textarea laid over a painted <pre>: every native editing behaviour
+   (undo, IME, selection, autoscroll) still belongs to the textarea, and the <pre> only
+   colours. Order in the alternation is the precedence — a keyword inside a string has
+   to lose to the string. */
+const PY_TOK = new RegExp([
+  /(#[^\n]*)/,                                                        // comment
+  /('''[\s\S]*?'''|"""[\s\S]*?"""|'(?:\\.|[^'\\\n])*'|"(?:\\.|[^"\\\n])*")/,   // string
+  /\b(False|None|True|and|as|assert|async|await|break|class|continue|def|del|elif|else|except|finally|for|from|global|if|import|in|is|lambda|nonlocal|not|or|pass|raise|return|try|while|with|yield)\b/,
+  /\b(robot|print|range|len|int|float|str|bool|list|dict|tuple|abs|min|max|sum|round|enumerate|zip|sorted|reversed)\b/,
+  /\b(\d[\d_]*(?:\.\d+)?)\b/,                                         // number
+].map(r => r.source).join('|'), 'g');
+
+const escHtml = s => s.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+
+function paintCode() {
+  const src = $('pyCode').value;
+  let out = '', last = 0;
+  src.replace(PY_TOK, (m, c, s, k, b, n, i) => {
+    out += escHtml(src.slice(last, i)) +
+           `<i class="${c ? 'c' : s ? 's' : k ? 'k' : b ? 'b' : 'n'}">${escHtml(m)}</i>`;
+    last = i + m.length;
+    return m;
+  });
+  // the trailing newline keeps the painted block as tall as the textarea's own last line
+  $('pyHi').innerHTML = out + escHtml(src.slice(last)) + '\n';
+  const lines = src.split('\n').length;
+  if (+$('pyGut').dataset.n !== lines) {
+    $('pyGut').dataset.n = lines;
+    $('pyGut').textContent = Array.from({ length: lines }, (_, i) => i + 1).join('\n');
+  }
+  syncCode();
+}
+
+// only the textarea has a scrollbar; it drags the painted layer and the gutter along
+function syncCode() {
+  $('pyHi').scrollTop = $('pyGut').scrollTop = $('pyCode').scrollTop;
+  $('pyHi').scrollLeft = $('pyCode').scrollLeft;
+}
+
+$('pyCode').addEventListener('input', paintCode);
+$('pyCode').addEventListener('scroll', syncCode);
+
+// Tab has to indent or Python is unwritable. Shift+Tab still leaves the field, so the
+// editor stays escapable by keyboard. execCommand is the deprecated one that keeps undo
+// working — setRangeText would wipe the history.
+$('pyCode').addEventListener('keydown', e => {
+  if (e.key !== 'Tab' || e.shiftKey) return;
+  e.preventDefault();
+  if (!document.execCommand('insertText', false, '    ')) {
+    e.target.setRangeText('    ', e.target.selectionStart, e.target.selectionEnd, 'end');
+  }
+  paintCode();
+});
+paintCode();
+
+$('pyCopy').onclick = async () => {
+  // the async clipboard wants a permission some embedders refuse outright; selecting the
+  // field and copying it needs nothing beyond the click that already happened
+  if (await navigator.clipboard?.writeText($('pyCode').value).then(() => 1, () => 0))
+    return pylog('已复制代码', 'dim');
+  const t = $('pyCode'), a = t.selectionStart, b = t.selectionEnd;
+  t.select();
+  const done = document.execCommand('copy');
+  t.setSelectionRange(a, b);                       // put the caret back where it was
+  pylog(done ? '已复制代码' : '复制失败 —— 请手动全选复制', done ? 'dim' : 'err');
+};
+
+const setFull = on => {
+  $('pyPanel').classList.toggle('full', on);
+  $('pyFull').setAttribute('aria-pressed', on);
+  $('pyFull').title = on ? '退出全屏' : '全屏';
+  $('pyFullIcon').setAttribute('href', on ? '#i-shrink' : '#i-expand');
+};
+$('pyFull').onclick = () => setFull(!$('pyPanel').classList.contains('full'));
+addEventListener('keydown', e => {
+  if (e.key === 'Escape' && $('pyPanel').classList.contains('full')) setFull(false);
+});
+
+function setRailTab(on) {
+  body.classList.toggle('rail-py', on);
+  $('rtPy').classList.toggle('on', on);  $('rtCtl').classList.toggle('on', !on);
+  $('rtPy').setAttribute('aria-selected', on); $('rtCtl').setAttribute('aria-selected', !on);
+  if (on) loadPy();
+}
+$('rtCtl').onclick = () => setRailTab(false);
+$('rtPy').onclick  = () => setRailTab(true);
 
 /* Chrome 147+ gates local-network access (including WebSockets) behind a permission that is
    only granted to secure contexts. A plain-HTTP page on a public domain can never obtain it,
