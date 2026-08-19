@@ -88,26 +88,81 @@ window.aimSleep = async sec => {
   }
 };
 
-const PY_GLUE = `
-import json, js
-from pyodide.ffi import run_sync
+/* The Python API lives in js/robot.js as AIM_PY. It is re-run before every program so
+   a crashed run leaves no half-mutated robot behind — Robot() is cheap, it only binds
+   to the page's sockets. */
+const PY_EXAMPLES = {
+  'move_and_stop': `# Project:      Move and Stop
+# Description:  This project moves the robot forward 300 mm and plays
+#               the "complete" sound once it has completed movement
 
-class Robot:
-    def _c(self, **kw): return json.loads(run_sync(js.aimCmd(json.dumps(kw))))
-    def drive(self, angle=0, speed=120): self._c(cmd_id='drive', angle=angle, speed=speed, stacking_type=0)
-    def turn(self, rate=90): self._c(cmd_id='turn', turn_rate=rate, stacking_type=0)
-    def stop(self):
-        self._c(cmd_id='drive', angle=0, speed=0, stacking_type=0)
-        self._c(cmd_id='turn', turn_rate=0, stacking_type=0)
-    def kick(self, level='medium'): self._c(cmd_id='kick_' + level)
-    def light(self, n, r, g, b):
-        self._c(cmd_id='light_set', **{('all' if n == 'all' else 'light%d' % n): {'r': r, 'g': g, 'b': b}})
-    def emoji(self, name, look=0): self._c(cmd_id='show_emoji', name=name, look=look)
-    def hide_emoji(self): self._c(cmd_id='hide_emoji')
-    def sleep(self, sec): run_sync(js.aimSleep(sec))
+robot.move_for(300, 0)
+robot.sound.play(COMPLETE)
+`,
+  'angled_moving': `# Project:      Angled Moving
+# Description:  This project moves the robot at 45-degree angles at 100%
+#               velocity to trace a diamond shape
 
-robot = Robot()
-`;
+robot.set_move_velocity(100)
+robot.move_for(100, 45)
+robot.move_for(100, 315)
+robot.move_for(100, 225)
+robot.move_for(100, 135)
+`,
+  'colorful_square': `# Project:      Colorful Square
+# Description:  This project makes the robot move in a square path,
+#               changing the LED color at each corner
+
+robot.led.on(ALL_LEDS, BLUE)
+robot.move_for(100, 0)
+robot.led.on(ALL_LEDS, RED)
+robot.move_for(100, 270)
+robot.led.on(ALL_LEDS, GREEN)
+robot.move_for(100, 180)
+robot.led.on(ALL_LEDS, ORANGE)
+robot.move_for(100, 90)
+`,
+  'odometry': `# Project:      Odometry
+# Description:  Zero the pose, drive a leg, and read back where the robot thinks it is
+
+robot.set_xy_position(0, 0)
+robot.inertial.reset_heading()
+
+robot.move_for(200, 0)
+print("x", round(robot.get_x_position(), 1), "mm")
+print("y", round(robot.get_y_position(), 1), "mm")
+
+robot.turn_for(RIGHT, 90)
+print("heading", robot.inertial.get_heading(), "deg")
+print("rotation", robot.inertial.get_rotation(), "deg")
+print("battery", robot.get_battery_capacity(), "%")
+`,
+  'move_at_until': `# Project:      Move At, Then Stop
+# Description:  move_at runs forever, so something else has to end it.
+#               Here a distance read from odometry does.
+
+robot.set_xy_position(0, 0)
+robot.move_at(0, 40)
+
+while robot.get_y_position() < 250:
+    wait(50, MSEC)
+
+robot.stop_all_movement()
+robot.screen.show_emoji(PROUD)
+`,
+  'emoji_reaction': `# Project:      Emoji Reaction
+# Description:  Look around, then react on the robot's own screen
+
+robot.screen.show_emoji(THINKING, LOOK_LEFT)
+robot.turn_for(LEFT, 45)
+robot.screen.show_emoji(THINKING, LOOK_RIGHT)
+robot.turn_for(RIGHT, 90)
+robot.screen.show_emoji(EXCITED)
+wait(1)
+robot.screen.hide_emoji()
+`,
+};
+
 
 async function loadPy() {
   if (py || pyLoading) return;
@@ -119,11 +174,12 @@ async function loadPy() {
     // JSPI is what lets Python call the robot without await. There is no second-best
     // here, only a different dialect users would have to learn — so say so instead.
     await p.runPythonAsync('from pyodide.ffi import run_sync\nimport js\nrun_sync(js.Promise.resolve(1))');
-    p.runPython(PY_GLUE);
+    p.runPython(AIM_PY, { filename: 'aim.py' });
     py = p;
     $('pyState').textContent = `Python ${py.version} 就绪`;
-    pylog('robot.drive(angle, speed) · turn(rate) · stop() · sleep(秒) · kick(轻重) · ' +
-          'light(编号, r, g, b) · emoji(名字)', 'dim');
+    pylog('API 与官方 vex 库一致：move_at / move_for / turn / turn_for / turn_to / ' +
+          'stop_all_movement · get_x_position / get_y_position / set_xy_position · ' +
+          'inertial · screen · kicker · led · sound · vision', 'dim');
   } catch (e) {
     $('pyState').textContent = '运行时加载失败';
     pylog(String(e?.message ?? e).split('\n').pop(), 'err');
@@ -140,7 +196,9 @@ $('pyRun').onclick = async () => {
   pySync();
   const t0 = performance.now();
   try {
-    py.runPython(PY_GLUE);                 // a fresh robot each run — a crashed one leaves nothing behind
+    // filename, so the library's own frames read "aim.py" and the traceback filter
+    // below can tell them from the user's "<exec>" ones
+    py.runPython(AIM_PY, { filename: 'aim.py' });   // a fresh robot each run, see above
     await py.runPythonAsync($('pyCode').value);
     pylog(`✓ 完成 ${Math.round(performance.now() - t0)}ms`, 'dim');
   } catch (e) {
@@ -251,5 +309,13 @@ function setRailTab(on) {
   $('rtPy').setAttribute('aria-selected', on); $('rtCtl').setAttribute('aria-selected', !on);
   if (on) loadPy();
 }
+$('pyEg').onchange = e => {
+  const src = PY_EXAMPLES[e.target.value];
+  if (!src) return;
+  $('pyCode').value = src;
+  paintCode();
+  e.target.value = '';        // the picker is an action, not a state
+};
+
 $('rtCtl').onclick = () => setRailTab(false);
 $('rtPy').onclick  = () => setRailTab(true);

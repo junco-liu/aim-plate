@@ -20,6 +20,7 @@ function placeholder(title, hint, cap, meta) {
 }
 
 let cmdWs, imgWs, statusWs, curHost, lastUrl, statusTimer, connectTimer, everOpen, frames = 0;
+let lastStatus = null, statusSeq = 0;   // the newest ws_status packet, for Python
 const pending = [];   // ws_cmd is strictly request/response — replies arrive in send order
 
 function send(obj) {
@@ -161,6 +162,8 @@ function openStatus(host) {
     statusTimer = setTimeout(poll, 200);
     let j;
     try { j = JSON.parse(new TextDecoder().decode(e.data)); } catch { return; }
+    lastStatus = j;
+    statusSeq++;
     if (j.robot) {
       $('battery').textContent = j.robot.battery + '%';
       $('heading').textContent = Math.round(+j.robot.heading) + '°';
@@ -168,6 +171,13 @@ function openStatus(host) {
     visionRender(visionParse(j.aivision));
   };
 }
+
+/* The newest status packet, kept for Python: the official library has a polling thread
+   whose Robot methods read robot.status, and this is the same packet from the same
+   socket. _seq counts packets so a program can tell a stale read from a fresh one —
+   that is what the motion-flag waits and set_xy_position block on. */
+window.aimStatus = () =>
+  lastStatus === null ? null : JSON.stringify({ ...lastStatus, _seq: statusSeq });
 
 // one fps sample per second, shown in the caption bar like a plate's spec line
 setInterval(() => {
@@ -189,6 +199,7 @@ function closeAll() {
     if (w.readyState <= WebSocket.OPEN) w.close();
   }
   cmdWs = imgWs = statusWs = null;
+  lastStatus = null;      // never let Python read a dead link's last packet
 }
 
 function teardown() {

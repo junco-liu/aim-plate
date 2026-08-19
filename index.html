@@ -295,6 +295,15 @@
             <button class="btn" id="pyRun" disabled>
               <svg class="icon" viewBox="0 0 24 24"><use href="#i-play"/></svg>运行</button>
             <button class="btn stop" id="pyStop" disabled>停止</button>
+            <select id="pyEg" aria-label="官方示例" title="载入官方示例">
+              <option value="">示例…</option>
+              <option value="move_and_stop">移动与停止</option>
+              <option value="angled_moving">斜向移动</option>
+              <option value="colorful_square">彩色方形</option>
+              <option value="odometry">里程计</option>
+              <option value="move_at_until">持续移动</option>
+              <option value="emoji_reaction">表情反应</option>
+            </select>
             <span class="pystate" id="pyState">首次切到这里会下载 Python 运行时</span>
             <button class="btn ico" id="pyFull" title="全屏" aria-label="全屏" aria-pressed="false">
               <svg class="icon" viewBox="0 0 24 24"><use href="#i-expand" id="pyFullIcon"/></svg></button>
@@ -307,16 +316,12 @@
                 <svg class="icon" viewBox="0 0 24 24"><use href="#i-copy"/></svg></button>
               <pre id="pyHi" aria-hidden="true"></pre>
               <textarea id="pyCode" spellcheck="false" autocapitalize="off" autocorrect="off"
-                    autocomplete="off" aria-label="Python 代码">robot.light('all', 0, 80, 160)
+                    autocomplete="off" aria-label="Python 代码"># Project:      Move and Stop
+# Description:  This project moves the robot forward 300 mm and plays
+#               the "complete" sound once it has completed movement
 
-for i in range(4):
-    robot.drive(angle=0, speed=120)
-    robot.sleep(1)
-    robot.turn(rate=90)
-    robot.sleep(1)
-
-robot.stop()
-print("走完一圈")
+robot.move_for(300, 0)
+robot.sound.play(COMPLETE)
 </textarea>
             </div>
           </div>
@@ -342,6 +347,7 @@ print("走完一圈")
 <script src="js/core.js"></script>
 <script src="js/screen.js"></script>
 <script src="js/control.js"></script>
+<script src="js/robot.js"></script>
 <script src="js/python.js"></script>
 <script src="js/startup.js"></script>
 </html>

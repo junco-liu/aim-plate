@@ -25,7 +25,47 @@
 - [x] 机器人屏幕：图注条上「画面 / 屏幕」切页。**画笔**在图版上直接画、抬笔即发；
       **图片**上传后拖动平移 + 缩放取景，量化成 N 色再发。圆外区域压斜纹标出（240×240 里
       21% 画了也看不见）。清屏可选背景色
+- [x] Python 在线编辑运行：右栏切到「代码」页即是编辑器 + 控制台，行号、语法高亮、
+      可拖动的编辑器 / 控制台占比、复制、全屏。运行时用 Pyodide，首次点开才下载
 - [ ] 额外加入MediaPipe手势识别
+
+## Python
+
+右栏顶部「控制 / 代码」切页。API **与官方 [vex 库](https://github.com/VEX-Robotics/AIM_Websocket_Library) 逐名对齐** ——
+方法名、参数顺序、单位、默认值都一样，官方文档和示例里的程序可以原样粘进来跑：
+
+```python
+from vex import *                 # 这两行在这里是空操作，留着只为官方示例能原样粘贴
+from vex.vex_globals import *
+robot = Robot()            # 页面已经握着连接，Robot() 只是绑上去，写不写都行
+
+robot.set_move_velocity(100)      # 100% == 200 mm/s
+robot.move_for(300, 0)            # 走 300 mm，默认阻塞到走完
+robot.turn_for(RIGHT, 90)
+print(robot.get_x_position(), robot.get_y_position())
+print(robot.inertial.get_heading())
+robot.stop_all_movement()
+```
+
+已实现：`move_at` `move_for` `move_with_vectors` `turn` `turn_for` `turn_to`
+`stop_all_movement` `spin_wheels` `set_move_velocity` `set_turn_velocity` ·
+`get_x_position` `get_y_position` `set_xy_position` `get_battery_capacity`
+`is_move_active` `is_turn_active` `is_stopped` · `has_any_barrel` 等四个 ·
+`robot.inertial`（朝向 / 旋转 / 横滚俯仰偏航 / 加速度 / 陀螺速率 / 校准 / 碰撞灵敏度）·
+`robot.screen`（文字、绘图、表情、触摸）· `robot.kicker` · `robot.led` ·
+`robot.sound` · `robot.vision` · `Timer` · `wait`。
+
+**未实现**：回调类（`screen.pressed` / `inertial.crashed` / `Timer.event`）—— 需要把
+状态轮询接成事件源；`play_local_file` 和 `robot_send_audio` —— 需要 ws_audio 上传通道；
+`show_file` —— 协议里没有上传通道，这条路本来就是死的；`color_description` /
+`code_description`；`get_camera_image` —— 画面已经在图版上了。
+
+同步阻塞（`robot.move_for(...)` 不用写 `await`）靠 WebAssembly JSPI + `pyodide.ffi.run_sync`
+实现，所以**不需要 Web Worker 和 SharedArrayBuffer**，也就不需要 GitHub Pages 给不了的
+COOP/COEP 响应头。代价是**只有 Chrome / Edge 能跑**（本来 LNA 也只放行它们）。
+
+`drive` / `turn` 是持续命令，所以程序**正常结束、报错退出、手动停止**三条路都会补发急停 ——
+程序结束等于机器人停下。纯计算死循环（`while True: pass`）打不断，中断只在 `await` 点生效。
 
 ## ⚠️ 必读：托管方式决定能不能连上
 
