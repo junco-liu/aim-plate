@@ -46,7 +46,7 @@ const SIGS = {
   // AprilTag starts unticked because that is the robot's own default — it is not
   // detecting tags until asked. Ticking the box sends tag_detection true.
   tag:          { label: 'AprilTag', c: '#E0A800', off: true },
-  Robot:        { label: '机器人',   c: '#B23BA6' },
+  Robot:        { label: '机器人',   c: '#B23BA6' },   // label goes through t()
   BlueBarrel:   { label: '蓝桶',     c: '#2F6FD0' },
   OrangeBarrel: { label: '橙桶',     c: '#DB6A1E' },
   SportsBall:   { label: '球',       c: '#2E9E5B' },
@@ -55,7 +55,7 @@ const MODEL_SIGS = ['Robot', 'BlueBarrel', 'OrangeBarrel', 'SportsBall'];
 
 $('sigs').innerHTML = Object.entries(SIGS).map(([k, v]) => `
   <label class="sig"><input type="checkbox" class="need" data-sig="${k}" disabled${v.off ? '' : ' checked'}>
-    <i style="background:${v.c}"></i><span>${v.label}</span><b id="n_${k}">0</b></label>`).join('');
+    <i style="background:${v.c}"></i><span>${t(v.label)}</span><b id="n_${k}">0</b></label>`).join('');
 
 const sigOn = k => $('sigs').querySelector(`[data-sig="${k}"]`).checked;
 
@@ -128,9 +128,9 @@ $('vToggle').onchange = e => {
   // boxes over an empty plate look like the annotation killed the feed — it didn't,
   // the feed is simply off, and only the plate can say so
   if (!body.classList.contains('streaming') && body.classList.contains('live'))
-    placeholder('标注已开启，画面未开启',
-                '标注走的是状态包，不需要视频流。想同时看画面，请拨动左边的「画面」开关。',
-                '已连接', '仅标注');
+    placeholder(t('标注已开启，画面未开启'),
+                t('标注走的是状态包，不需要视频流。想同时看画面，请拨动左边的「画面」开关。'),
+                t('已连接'), t('仅标注'));
 };
 
 /* ── commands ─────────────────────────────────────────── */
@@ -150,7 +150,7 @@ const quiet = p => p?.catch(() => {});
 
 $('connect').onclick = connect;
 $('disconnect').onclick = disconnect;
-$('estop').onclick = () => { quiet(halt()); log('急停'); };
+$('estop').onclick = () => { quiet(halt()); log(t('急停')); };
 $('ip').onkeydown = e => { if (e.key === 'Enter') connect(); };  // no bare `&&` — a falsy return cancels the keypress
 
 $('speed').oninput = e => $('speedv').textContent = e.target.value + '%';
@@ -164,9 +164,9 @@ $('camToggle').onchange = e => {
   }
   if (imgWs?.readyState === 1) imgWs.send(new Uint8Array([0]));
   body.classList.remove('streaming');
-  placeholder('画面已关闭', body.classList.contains('vlay')
-    ? '标注还在跑，画的是同一批数据。把「画面」开关拨开即可恢复实时画面。'
-    : '把图注条上的「画面」开关拨开即可恢复。', '已连接', '画面已关闭');
+  placeholder(t('画面已关闭'), body.classList.contains('vlay')
+    ? t('标注还在跑，画的是同一批数据。把「画面」开关拨开即可恢复实时画面。')
+    : t('把图注条上的「画面」开关拨开即可恢复。'), t('已连接'), t('画面已关闭'));
 };
 
 const rgb = h => ({ r: parseInt(h.slice(1, 3), 16), g: parseInt(h.slice(3, 5), 16),

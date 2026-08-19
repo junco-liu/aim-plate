@@ -38,7 +38,7 @@ if (new URLSearchParams(location.search).has('selftest')) {
   const afterDrop = live();
 
   window.WebSocket = Real;
-  teardown(); setState(null, '未连接');
+  teardown(); setState(null, t('未连接'));
 
   // the parser turns a raw status block into what the overlay draws — check it too
   const v = visionParse({

@@ -2,18 +2,39 @@
    The page is a printed manual. The camera feed is a plate: a bordered
    figure with a solid caption bar. Groups rank by a hanging head and a
    full rule — never a card. Colour is quarantined: one press blue, plus
-   a red reserved entirely for the stop. Light, because the room is.
+   a red reserved entirely for the stop. Light by default, because the room is —
+   the dark set below is the same manual printed on dark stock, not a new design.
    ═════════════════════════════════════════════════════════════════ */
 :root {
   --paper:  #F3F4F1;   /* cool uncoated stock, deliberately not warm cream */
   --plate:  #E7E9E4;
+  --plate-2:#EDEFEA;   /* the hatch that marks the screen's invisible corners */
   --ink:    #17181A;
+  --ink-2:  #000000;   /* the pressed extreme of ink */
   --ink2:   #5F6560;   /* 5.5:1 on paper */
   --rule:   #CFD3CC;
   --rule-2: #E2E5DF;
   --press:  #17518C;   /* the only press colour */
   --stop:   #B3261E;   /* reserved for the stop, nothing else */
+  --stop-2: #8E1D17;
   --off:    #8B918A;   /* disabled text — 3.4:1, off but still readable */
+  --field:  #FFFFFF;   /* anything you can type into */
+  --ph:     #9BA09A;
+  --sel:    #C9DAEC;
+  --shadow: #17181A1F;
+  --code-str: #3E6B2F; /* code is its own surface; one hue beyond the pair */
+
+  /* The caption bar is a solid dark bar with light type in BOTH themes. It does not
+     invert with ink/paper, because the whites printed on it are fixed. */
+  --cap-bg: #17181A;
+  --cap-ink: #F3F4F1;
+
+  /* the mixed-content / LNA notice, the one warm thing on the page */
+  --warn-bg: #FBF3D8;
+  --warn-rule: #D8C88A;
+  --warn-ink: #5A4A16;
+  --warn-b: #3F340D;
+  --warn-tint: #00000010;
 
   --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:20px; --s6:24px;
   --rail: 300px;  /* the drags rewrite these two, nothing else */
@@ -27,8 +48,39 @@
   --mono: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace;
 }
 
+/* Same roles, dark stock. data-theme is stamped by the inline script in <head> from the
+   stored choice, or from prefers-color-scheme when there is none — so there is one block
+   here rather than a media query and an override that have to agree. */
+:root[data-theme="dark"] {
+  --paper:  #16181A;
+  --plate:  #1F2225;
+  --plate-2:#26292C;
+  --ink:    #E8EAE6;
+  --ink-2:  #FFFFFF;
+  --ink2:   #A0A6A0;   /* 7.4:1 on paper */
+  --rule:   #383D3F;
+  --rule-2: #2A2E30;
+  --press:  #6FA8DC;   /* lifted, or it disappears into the stock */
+  --stop:   #FF6B60;
+  --stop-2: #FF8A80;
+  --off:    #6E7470;   /* 3.8:1, off but still readable */
+  --field:  #0F1113;
+  --ph:     #666C68;
+  --sel:    #2C4A66;
+  --shadow: #00000066;
+  --code-str: #8FC97A;
+  --cap-bg: #2E3235;   /* still a bar, just lifted off the stock */
+  --cap-ink: #F3F4F1;
+  --warn-bg: #2B2410;
+  --warn-rule: #5C4E1E;
+  --warn-ink: #E8D9A0;
+  --warn-b: #F5E9BE;
+  --warn-tint: #FFFFFF14;
+}
+
 * { box-sizing: border-box; }
 html { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }   /* scrollbars and native controls too */
 
 body {
   margin: 0; min-height: 100dvh;
@@ -40,7 +92,7 @@ body {
   overscroll-behavior: none;
 }
 
-::selection { background: #C9DAEC; color: var(--ink); }
+::selection { background: var(--sel); color: var(--ink); }
 :focus-visible { outline: 2px solid var(--press); outline-offset: 2px; }
 
 * { scrollbar-width: thin; scrollbar-color: var(--rule) transparent; }
@@ -53,15 +105,15 @@ body {
 .alert {
   display: none; gap: var(--s3); align-items: flex-start;
   padding: var(--s3) var(--s5);
-  background: #FBF3D8; border-bottom: 1px solid #D8C88A;
-  font-size: 13.5px; line-height: 1.55; color: #5A4A16;
+  background: var(--warn-bg); border-bottom: 1px solid var(--warn-rule);
+  font-size: 13.5px; line-height: 1.55; color: var(--warn-ink);
 }
 .alert.show { display: flex; }
 .alert svg { width: 17px; height: 17px; flex: none; margin-top: 2px;
   stroke: currentColor; fill: none; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
-.alert b { color: #3F340D; font-weight: 650; }
+.alert b { color: var(--warn-b); font-weight: 650; }
 .alert ol { margin: var(--s2) 0 0; padding-left: 1.25em; }
-.alert code { background: #00000010; padding: 1px 5px; font: 400 12.5px/1 var(--mono); }
+.alert code { background: var(--warn-tint); padding: 1px 5px; font: 400 12.5px/1 var(--mono); }
 
 /* ── sheet: shoulder + page ─────────────────────────────── */
 .sheet { display: grid; grid-template-columns: 54px minmax(0,1fr); min-height: 0; }
@@ -88,7 +140,7 @@ body {
 #estop u { text-decoration: none; writing-mode: vertical-rl;
   font: 500 9px/1 var(--mono); letter-spacing: .22em; opacity: .75; }
 #estop:hover:not(:disabled) { background: var(--stop); color: #fff; }
-#estop:active:not(:disabled) { background: #8E1D17; color: #fff; }
+#estop:active:not(:disabled) { background: var(--stop-2); color: #fff; }
 #estop:disabled { border-color: var(--rule); color: var(--off); cursor: not-allowed; }
 
 .page { display: flex; flex-direction: column; min-width: 0; }

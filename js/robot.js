@@ -359,7 +359,7 @@ def _lights(led):
     disagree, and the documented one wins here."""
     if isinstance(led, (tuple, list, set, frozenset)):
         if not led:
-            raise AimException('LED 集合是空的')
+            raise AimException(js.aimT('LED 集合是空的'))
         names = []
         for one in led:
             for name in _lights(one):
@@ -403,8 +403,8 @@ class Robot:
         # JS null arrives as JsNull, not None, so test the type rather than identity —
         # otherwise the miss surfaces as a json TypeError instead of this message
         if not isinstance(raw, str):
-            raise DisconnectedException(
-                '还没有状态包 —— 机器人未连接，或 ws_status 还没回过一包')
+            raise DisconnectedException(js.aimT(
+                '还没有状态包 —— 机器人未连接，或 ws_status 还没回过一包'))
         return json.loads(raw)
 
     def _seq(self):

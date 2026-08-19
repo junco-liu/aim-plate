@@ -26,8 +26,8 @@ const scrPos = e => {
   return { x: (e.clientX - b.left) / b.width * SCR, y: (e.clientY - b.top) / b.height * SCR };
 };
 
-const fmtSec = s => s >= 60 ? `${Math.floor(s / 60)} 分 ${Math.round(s % 60)} 秒`
-                            : `${Math.max(1, Math.round(s))} 秒`;
+const fmtSec = s => s >= 60 ? t('{0} 分 {1} 秒', Math.floor(s / 60), Math.round(s % 60))
+                            : t('{0} 秒', Math.max(1, Math.round(s)));
 
 /* One request in flight, always — the same discipline the Python client keeps. Which is
    why a whole-image send is tens of thousands of round trips: minutes, not seconds. So
@@ -48,9 +48,9 @@ async function runOps(ops) {
       $('barFill').style.width = (done * 100) + '%';
       const rate = i > 8 ? (performance.now() - t0) / (i + 1) : sendRate;
       $('scrProg').textContent =
-        `${(i + 1).toLocaleString()} / ${ops.length.toLocaleString()} 条 · ` +
-        `${Math.round(done * 100)}%` +
-        (rate ? ` · 约剩 ${fmtSec((ops.length - i - 1) * rate / 1000)}` : '');
+        t('{0} / {1} 条 · {2}%', (i + 1).toLocaleString(),
+          ops.length.toLocaleString(), Math.round(done * 100)) +
+        (rate ? t(' · 约剩 {0}', fmtSec((ops.length - i - 1) * rate / 1000)) : '');
     }
   }
   const dt = performance.now() - t0;
@@ -60,16 +60,17 @@ async function runOps(ops) {
   $('scrProg').textContent = '';       // or the next send flashes this one's last figure
   busy = false; $('scrStop').disabled = true;
   $('scrSend').disabled = !body.classList.contains('live') || !scrOps.length;
-  if (i && ops.length > 8) log(`屏幕：发出 ${i}/${ops.length} 条，用时 ${(dt / 1000).toFixed(1)}s` +
-                               (abort ? '（已取消）' : ''), abort || i < ops.length);
+  if (i && ops.length > 8) log(t('屏幕：发出 {0}/{1} 条，用时 {2}s', i, ops.length, (dt / 1000).toFixed(1)) +
+                               (abort ? t('（已取消）') : ''), abort || i < ops.length);
   showCost();
 }
 
 const showCost = () => $('cost').textContent = !scrOps.length
-  ? '选一张图片。拖动图版可平移。'
-  : `${scrOps.length.toLocaleString()} 条命令` +
-    (sendRate ? ` · 约 ${Math.max(1, Math.round(scrOps.length * sendRate / 1000))} 秒`
-              : ' · 首次发送后才会估时');
+  ? t('选一张图片。拖动图版可平移。')
+  : t('{0} 条命令', scrOps.length.toLocaleString()) +
+    (sendRate ? t(' · 约 {0} 秒', Math.max(1, Math.round(scrOps.length * sendRate / 1000)))
+              : t(' · 首次发送后才会估时'));
+onLang.push(showCost);
 
 /* ── pen: draw on the plate, send on pointer-up ─────────── */
 
@@ -126,7 +127,7 @@ $('file').onchange = e => {
   if (!f) return;
   const el = new Image();
   el.onload = () => { img.el = el; fitImage(); };
-  el.onerror = () => log('这张图片读不出来', true);
+  el.onerror = () => log(t('这张图片读不出来'), true);
   el.src = URL.createObjectURL(f);
 };
 
@@ -159,9 +160,9 @@ function medianCut(px, n) {
     boxes.splice(0, 1, b.slice(0, b.length >> 1), b.slice(b.length >> 1));
   }
   return boxes.map(b => {
-    const t = [0, 0, 0];
-    for (const p of b) { t[0] += p[0]; t[1] += p[1]; t[2] += p[2]; }
-    return t.map(v => Math.round(v / b.length));
+    const sum = [0, 0, 0];      // not `t` — that name is the translator
+    for (const p of b) { sum[0] += p[0]; sum[1] += p[1]; sum[2] += p[2]; }
+    return sum.map(v => Math.round(v / b.length));
   });
 }
 
@@ -245,14 +246,21 @@ const EMOJI_CN = ['兴奋', '自信', '调皮', '惊叹', '强壮', '激动', '�
   '沮丧', '嫉妒', '震惊', '害怕', '厌恶'];
 const LOOK_CN = ['正面', '向左', '向右'];
 const emoUrl = i => `https://api.vex.com/aim/_images/${i + 1}-${EMOJI[i].toLowerCase()}.png`;
+// the robot's own EmojiType names are already English, so English mode title-cases those
+// rather than carrying 36 more dictionary rows
+const emoName = i => lang === 'en'
+  ? EMOJI[i][0] + EMOJI[i].slice(1).toLowerCase()
+  : EMOJI_CN[i];
 
 let emoOn = null, emoLook = 0;
 
-$('emos').innerHTML = EMOJI.map((n, i) => `
+const renderEmos = () => $('emos').innerHTML = EMOJI.map((n, i) => `
   <button class="emo" data-i="${i}" title="${n}">
     <img src="${emoUrl(i)}" alt="" loading="lazy" onerror="this.remove()">
-    <span>${EMOJI_CN[i]}</span>
+    <span>${emoName(i)}</span>
   </button>`).join('');
+renderEmos();
+onLang.push(() => { renderEmos(); paintEmoji(); });
 
 $('emoView').onload  = () => body.classList.remove('emo-nopic');
 $('emoView').onerror = () => body.classList.add('emo-nopic');   // no internet: show the name
@@ -263,10 +271,10 @@ function paintEmoji() {
   [...$('emos').children].forEach((b, k) => b.classList.toggle('on', on && k === emoOn));
   $('emoOff').disabled = !on || !body.classList.contains('live');
   $('scrMeta').textContent = on
-    ? `表情 · ${EMOJI_CN[emoOn]} · ${LOOK_CN[emoLook]}`
-    : '240 × 240 · 可见区 r=120';
+    ? t('表情 · {0} · {1}', emoName(emoOn), t(LOOK_CN[emoLook]))
+    : t('240 × 240 · 可见区 r=120');
   if (!on) return;
-  $('emoLbl').textContent = `${EMOJI_CN[emoOn]} · ${LOOK_CN[emoLook]}`;
+  $('emoLbl').textContent = `${emoName(emoOn)} · ${t(LOOK_CN[emoLook])}`;
   const u = emoUrl(emoOn);
   if ($('emoView').getAttribute('src') !== u) $('emoView').src = u;
 }

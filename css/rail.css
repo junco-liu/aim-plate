@@ -42,7 +42,7 @@ body:not(.rail-py) .pypanel { display: none; }
    editing behaviour (undo, IME, selection, spellcheck off) and the <pre> only paints.
    Both must share font, padding and tab-size exactly or the caret drifts off the glyphs. */
 .editor { display: grid; grid-template-columns: auto minmax(0,1fr); min-height: 0;
-  border: 1px solid var(--rule); background: #fff; overflow: hidden; }
+  border: 1px solid var(--rule); background: var(--field); overflow: hidden; }
 .editor:focus-within { border-color: var(--press); box-shadow: inset 0 0 0 1px var(--press); }
 .gut { overflow: hidden; user-select: none; text-align: right;
   padding: 9px 8px 9px 10px; border-right: 1px solid var(--rule-2);
@@ -56,7 +56,7 @@ body:not(.rail-py) .pypanel { display: none; }
 #pyCode { overflow: auto; resize: none; background: none; color: transparent;
   -webkit-text-fill-color: transparent; caret-color: var(--ink); }
 #pyCode:focus { outline: none; }
-#pyCode::selection { background: #C9DAEC; }
+#pyCode::selection { background: var(--sel); }
 
 /* The copy button sits inside the box it copies, clear of the scrollbar, and stays out
    of the way until the pointer is over the code. Touch has no hover, so there it is
@@ -75,7 +75,7 @@ body:not(.rail-py) .pypanel { display: none; }
    Everything else is carried by the existing ink / press pair plus weight and italic. */
 #pyHi .k { color: var(--press); font-weight: 600; }   /* keyword */
 #pyHi .b { font-weight: 600; }                        /* builtin, robot */
-#pyHi .s { color: #3E6B2F; }                          /* string */
+#pyHi .s { color: var(--code-str); }                  /* string */
 #pyHi .n { color: var(--ink2); }                      /* number */
 #pyHi .c { color: var(--off); font-style: italic; }   /* comment */
 
@@ -84,7 +84,7 @@ body:not(.rail-py) .pypanel { display: none; }
 .pyac { position: absolute; z-index: 5; margin: 0; padding: 0; list-style: none;
   max-height: 152px; min-width: 132px; overflow-y: auto;
   background: var(--paper); border: 1px solid var(--ink);
-  box-shadow: 3px 3px 0 #17181a1f;
+  box-shadow: 3px 3px 0 var(--shadow);
   font: 400 12px/1 var(--mono); }
 .pyac[hidden] { display: none; }
 .pyac li { padding: 5px 9px; cursor: pointer; white-space: nowrap; color: var(--ink); }
@@ -130,6 +130,9 @@ body:not(.rail-py) .pypanel { display: none; }
 }
 .grp h2 u { text-decoration: none; font: 400 9.5px/1 var(--mono);
   letter-spacing: .1em; color: var(--ink2); }
+/* the sub-label is the official English term set beside the Chinese one — in English it
+   would just repeat the heading, so it goes away */
+html[lang="en"] .grp h2 u { display: none; }
 
 .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
 .row3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 7px; }
@@ -155,19 +158,19 @@ body:not(.rail-py) .pypanel { display: none; }
 select {
   flex: 1; min-width: 0; height: var(--tap); padding: 0 9px;
   font: 400 13px/1 var(--sans); color: var(--ink);
-  background: #fff; border: 1px solid var(--ink); border-radius: 0;
+  background: var(--field); border: 1px solid var(--ink); border-radius: 0;
 }
 select:disabled { color: var(--off); border-color: var(--rule); background: var(--paper); }
 input[type=color] {
   width: var(--tap); height: var(--tap); flex: none; padding: 3px;
-  background: #fff; border: 1px solid var(--ink); border-radius: 0; cursor: pointer;
+  background: var(--field); border: 1px solid var(--ink); border-radius: 0; cursor: pointer;
 }
 input[type=color]:disabled { border-color: var(--rule); cursor: not-allowed; }
 input[type=color]::-webkit-color-swatch { border: 0; }
 input[type=color]::-moz-color-swatch { border: 0; }
 
 .keys { margin-top: 10px; font: 400 10.5px/1.75 var(--mono); color: var(--ink2); }
-.keys kbd { border: 1px solid var(--rule); background: #fff; padding: 1px 4px;
+.keys kbd { border: 1px solid var(--rule); background: var(--field); padding: 1px 4px;
   margin-right: 2px; font: 500 9.5px/1 var(--mono); color: var(--ink); }
 
 details.log { border-top: 1px solid var(--rule); margin-top: 15px; }

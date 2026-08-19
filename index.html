@@ -6,6 +6,15 @@
 <meta name="description" content="浏览器直连 VEX AIM 机器人的局域网控制台，无需服务器。">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' fill='%23F3F4F1'/><rect x='2.5' y='3.5' width='11' height='8' fill='none' stroke='%2317181A'/><rect x='2.5' y='11.5' width='11' height='2' fill='%2317518C'/></svg>">
 
+<script>
+  /* Stamped before the first paint, so the page never flashes the wrong stock. The
+     stored choice wins; with none, the system preference decides. */
+  try {
+    document.documentElement.dataset.theme = localStorage.getItem('aimTheme')
+      || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  } catch (e) { document.documentElement.dataset.theme = 'light'; }
+</script>
+
 <link rel="stylesheet" href="css/base.css">
 <link rel="stylesheet" href="css/header.css">
 <link rel="stylesheet" href="css/plate.css">
@@ -31,6 +40,10 @@
     <path d="M9.5 20.5h-6v-6"/><path d="M3.5 20.5 11 13"/></g>
   <g id="i-shrink"><path d="M20.5 9.5h-6v-6"/><path d="M14.5 9.5 21.5 2.5"/>
     <path d="M3.5 14.5h6v6"/><path d="M9.5 14.5 2.5 21.5"/></g>
+  <g id="i-moon"><path d="M20.5 14.6A9 9 0 0 1 9.4 3.5a9 9 0 1 0 11.1 11.1z"/></g>
+  <g id="i-sun"><circle cx="12" cy="12" r="4.3"/><path d="M12 2.5v2.2M12 19.3v2.2"/>
+    <path d="M2.5 12h2.2M19.3 12h2.2"/><path d="M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6"/>
+    <path d="M18.7 5.3l-1.6 1.6M6.9 17.1l-1.6 1.6"/></g>
   <g id="i-warn"><path d="M12 3.5 1.8 20.5h20.4z"/><path d="M12 9.5v5"/><path d="M12 17.6v.1"/></g>
 </defs></svg>
 
@@ -64,6 +77,9 @@
         <span class="m"><u>朝向</u><b id="heading">—</b></span>
       </div>
 
+      <button class="hbtn" id="langBtn" type="button">EN</button>
+      <button class="hbtn" id="themeBtn" type="button">
+        <svg class="icon" viewBox="0 0 24 24"><use href="#i-moon" id="themeIcon"/></svg></button>
       <a class="ghl" href="https://github.com/junco-liu/AIM_Websocket_online"
          target="_blank" rel="noopener noreferrer">GitHub ↗</a>
     </header>
@@ -79,11 +95,11 @@
                 <p id="phTitle">尚未连接机器人</p>
                 <p id="phHint">确认设备与机器人在同一局域网，输入 IP 后点击「连接」。</p>
                 <ol class="steps">
-                  <li>把机器人开机，让它和这台设备连到<b>同一个 Wi-Fi</b>；
+                  <li data-i18n-html="steps-1">把机器人开机，让它和这台设备连到<b>同一个 Wi-Fi</b>；
                       也可以直接连机器人自己的热点，此时 IP 是 <b>192.168.4.1</b>。</li>
-                  <li>在上方填入机器人的 <b>IP 地址</b>，按「连接」。</li>
-                  <li>浏览器若询问<b>是否允许访问本地网络设备</b>，请点允许。</li>
-                  <li>连上后拨动下方图注条里的<b>「画面」开关</b>，即可看到实时画面。</li>
+                  <li data-i18n-html="steps-2">在上方填入机器人的 <b>IP 地址</b>，按「连接」。</li>
+                  <li data-i18n-html="steps-3">浏览器若询问<b>是否允许访问本地网络设备</b>，请点允许。</li>
+                  <li data-i18n-html="steps-4">连上后拨动下方图注条里的<b>「画面」开关</b>，即可看到实时画面。</li>
                 </ol>
               </div>
               <svg id="vlay" viewBox="0 0 320 240" preserveAspectRatio="xMidYMid meet"
@@ -135,7 +151,7 @@
             </div>
           </div>
         </div>
-        <p class="figno">
+        <p class="figno" data-i18n-html="figno">
           按住方向键即走，松开即停。<kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 或 <kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> 平移 · <kbd>Q</kbd><kbd>E</kbd> 转向 · <kbd>空格</kbd> 急停。
         </p>
         <details class="vt" id="vdetail">
@@ -182,7 +198,7 @@
             <div class="lab"><label for="turn">转向速度</label><b id="turnv">65%</b></div>
             <input type="range" id="turn" min="10" max="100" step="5" value="65">
           </div>
-          <p class="keys">
+          <p class="keys" data-i18n-html="keys-drive">
             <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 或 <kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> 平移 · <kbd>Q</kbd><kbd>E</kbd> 转向 · <kbd>空格</kbd> 急停
           </p>
         </details>
@@ -190,7 +206,7 @@
         <details class="grp">
           <summary><svg class="icon" viewBox="0 0 24 24"><use href="#i-chevron"/></svg><h2>视觉 <u>VISION</u></h2></summary>
           <div class="sigs" id="sigs"></div>
-          <p class="keys">取消勾选会关掉机器人端对应检测，从源头少发数据；
+          <p class="keys" data-i18n-html="keys-vision">取消勾选会关掉机器人端对应检测，从源头少发数据；
             标注不依赖画面，关掉视频流也能看。</p>
         </details>
 
@@ -214,7 +230,7 @@
               <div class="lab"><label for="penW">笔宽</label><b id="penWv">3 px</b></div>
               <input type="range" id="penW" min="1" max="16" step="1" value="3">
             </div>
-            <p class="keys">在图版上直接画，抬笔即发。未连接时只在本地画。</p>
+            <p class="keys" data-i18n-html="keys-pen">在图版上直接画，抬笔即发。未连接时只在本地画。</p>
           </div>
 
           <div class="forImg">
@@ -246,7 +262,7 @@
             </div>
             <div class="emos" id="emos"></div>
             <button class="btn need" id="emoOff" disabled style="width:100%;margin-top:7px">隐藏表情</button>
-            <p class="keys">表情盖在绘制内容之上。画笔、图片、清屏会先自动隐藏表情，
+            <p class="keys" data-i18n-html="keys-emoji">表情盖在绘制内容之上。画笔、图片、清屏会先自动隐藏表情，
               否则命令发出去了屏幕也不动。</p>
           </div>
 
@@ -348,10 +364,12 @@ robot.sound.play(COMPLETE)
   </div>
 </footer>
 
+<script src="js/i18n.js"></script>
 <script src="js/core.js"></script>
 <script src="js/screen.js"></script>
 <script src="js/control.js"></script>
 <script src="js/robot.js"></script>
 <script src="js/python.js"></script>
+<script src="js/prefs.js"></script>
 <script src="js/startup.js"></script>
 </html>

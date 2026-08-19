@@ -24,7 +24,7 @@ let lastStatus = null, statusSeq = 0;   // the newest ws_status packet, for Pyth
 const pending = [];   // ws_cmd is strictly request/response — replies arrive in send order
 
 function send(obj) {
-  if (cmdWs?.readyState !== 1) return Promise.reject(new Error('未连接'));
+  if (cmdWs?.readyState !== 1) return Promise.reject(new Error(t('未连接')));
   return new Promise((res, rej) => {
     pending.push({ res, rej });
     cmdWs.send(new TextEncoder().encode(JSON.stringify(obj)));
@@ -46,25 +46,24 @@ function setState(cls, text) {
 
 function connect() {
   const host = $('ip').value.trim();
-  if (!host) { log('请输入机器人 IP 地址', true); $('ip').focus(); return; }
+  if (!host) { log(t('请输入机器人 IP 地址'), true); $('ip').focus(); return; }
 
   closeAll();                       // never stack sockets on top of a previous attempt
   curHost = host;
   everOpen = false;
   body.classList.remove('pristine');
-  setState('busy', '连接中…');
-  placeholder('正在连接…', `尝试 ws://${host}`, '连接中', host);
-  log(`连接 ${host}`);
+  setState('busy', t('连接中…'));
+  placeholder(t('正在连接…'), t('尝试 ws://{0}', host), t('连接中'), host);
+  log(t('连接 {0}', host));
 
   // an unreachable host leaves the socket in CONNECTING for a minute or more — fail fast instead
   connectTimer = setTimeout(() => {
     if (everOpen) return;
-    log(`${host} 无响应 —— 机器人可能已休眠、断开局域网，或 IP 变了。` +
-        `按一下机器人电源键唤醒后重试。`, true);
+    log(t('{0} 无响应 —— 机器人可能已休眠、断开局域网，或 IP 变了。按一下机器人电源键唤醒后重试。', host), true);
     teardown();
     setState(null, '未连接');
-    placeholder('连接超时', `${host} 没有响应。确认机器人已唤醒且与本设备在同一局域网。`,
-                '超时', '—');
+    placeholder(t('连接超时'), t('{0} 没有响应。确认机器人已唤醒且与本设备在同一局域网。', host),
+                t('超时'), '—');
   }, 8000);
 
   cmdWs = new WebSocket(`ws://${host}/ws_cmd`);
@@ -77,8 +76,8 @@ function connect() {
     // the entry is already shifted; if the frame is malformed and we let the throw
     // escape, this promise never settles and every await on it (halt included) hangs
     try { r = JSON.parse(new TextDecoder().decode(e.data)); }
-    catch { log('收到无法解析的命令回复，已丢弃', true); p.rej(new Error('bad frame')); return; }
-    if (r.status === 'error') { log(`命令 ${r.cmd_id} 失败: ${r.error_info ?? '未知错误'}`, true); p.rej(r); }
+    catch { log(t('收到无法解析的命令回复，已丢弃'), true); p.rej(new Error('bad frame')); return; }
+    if (r.status === 'error') { log(t('命令 {0} 失败: {1}', r.cmd_id, r.error_info ?? t('未知错误')), true); p.rej(r); }
     else p.res(r);
   };
 
@@ -86,9 +85,10 @@ function connect() {
     everOpen = true;
     clearTimeout(connectTimer);
     $('hostLabel').textContent = host;
-    setState('live', '已连接');
-    placeholder('画面未开启', '拨动图注条上的「画面」开关即可查看实时画面。', '已连接', '画面未开启');
-    log('已连接，初始化程序');
+    setState('live', t('已连接'));
+    placeholder(t('画面未开启'), t('拨动图注条上的「画面」开关即可查看实时画面。'),
+                t('已连接'), t('画面未开启'));
+    log(t('已连接，初始化程序'));
     const sock = cmdWs;
     await send({ cmd_id: 'program_init' }).catch(() => {});
     if (cmdWs !== sock) return;   // link dropped while we awaited — don't open a stray status socket
@@ -98,18 +98,18 @@ function connect() {
   cmdWs.onerror = () => {};   // the close handler below reports; onerror carries no detail
 
   cmdWs.onclose = () => {
-    pending.splice(0).forEach(p => p.rej(new Error('连接已关闭')));
+    pending.splice(0).forEach(p => p.rej(new Error(t('连接已关闭'))));
     const dropped = everOpen;
     teardown();
     setState(null, '未连接');
     if (dropped) {
-      log('连接中断 —— 机器人主动断开或离开了局域网', true);
-      placeholder('连接已中断', `与 ${host} 的连接断开了。点「连接」重试。`, '已中断', '—');
+      log(t('连接中断 —— 机器人主动断开或离开了局域网'), true);
+      placeholder(t('连接已中断'), t('与 {0} 的连接断开了。点「连接」重试。', host), t('已中断'), '—');
     } else {
-      log(`无法连接 ${host} —— 确认 IP 正确、机器人已唤醒、本设备与它在同一局域网` +
-          (isSecure ? '。若浏览器弹出「访问本地网络设备」授权框，请点允许' : ''), true);
-      placeholder('无法连接', `连不上 ${host}。检查 IP 与局域网，或按电源键唤醒机器人。`,
-                  '连接失败', '—');
+      log(t('无法连接 {0} —— 确认 IP 正确、机器人已唤醒、本设备与它在同一局域网', host) +
+          (isSecure ? t('。若浏览器弹出「访问本地网络设备」授权框，请点允许') : ''), true);
+      placeholder(t('无法连接'), t('连不上 {0}。检查 IP 与局域网，或按电源键唤醒机器人。', host),
+                  t('连接失败'), '—');
     }
   };
 
@@ -132,15 +132,15 @@ function openImg() {
     frames++;
     body.classList.add('streaming');
     $('camToggle').checked = true;      // the robot may already be streaming
-    $('capState').textContent = '实时';
+    $('capState').textContent = t('实时');
   };
   imgWs.onclose = () => {
     body.classList.remove('streaming');
     if (!body.classList.contains('live')) return;   // ordinary teardown — cmdWs reports that
     $('camToggle').checked = false;
-    log('画面通道断开（ws_img）—— 机器人把视频 socket 关了。命令与标注不受影响，重新「连接」可恢复画面', true);
-    placeholder('画面通道断开', '视频流被机器人关掉了。重新点「连接」即可恢复；标注走的是状态包，不受影响。',
-                undefined, '画面已断');
+    log(t('画面通道断开（ws_img）—— 机器人把视频 socket 关了。命令与标注不受影响，重新「连接」可恢复画面'), true);
+    placeholder(t('画面通道断开'), t('视频流被机器人关掉了。重新点「连接」即可恢复；标注走的是状态包，不受影响。'),
+                undefined, t('画面已断'));
   };
 }
 

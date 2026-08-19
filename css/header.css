@@ -26,17 +26,26 @@ body.live .readout .m.hostm { display: inline; }
   text-decoration: none; white-space: nowrap; }
 .ghl:hover { color: var(--press); text-decoration: underline; }
 
+/* preference buttons: chrome, not controls — same weight as the repo link beside them */
+.hbtn { appearance: none; background: none; border: 0; padding: 3px 5px; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 4px;
+  font: 400 12.5px/1 var(--mono); letter-spacing: .04em; color: var(--ink2);
+  -webkit-tap-highlight-color: transparent; transition: color var(--fast); }
+.hbtn:hover { color: var(--press); }
+.hbtn .icon { width: 15px; height: 15px; }
+.hbtn:focus-visible { outline: 2px solid var(--press); outline-offset: 1px; }
+
 /* ── controls, printed rather than styled ───────────────── */
 input[type=text] {
   width: 150px; height: var(--tap); padding: 0 11px;
   font: 400 13.5px/1 var(--mono); font-variant-numeric: tabular-nums;
-  color: var(--ink); background: #fff;
+  color: var(--ink); background: var(--field);
   border: 1px solid var(--ink); border-radius: 0;
   transition: box-shadow var(--fast);
 }
 input[type=text]:focus { outline: none; box-shadow: inset 0 -2px 0 var(--press); }
 input[type=text]:disabled { color: var(--ink2); background: var(--plate); border-color: var(--rule); }
-input::placeholder { color: #9BA09A; }
+input::placeholder { color: var(--ph); }
 
 .btn {
   height: var(--tap); padding: 0 13px;
@@ -48,7 +57,7 @@ input::placeholder { color: #9BA09A; }
   transition: background var(--fast), color var(--fast), border-color var(--fast);
 }
 .btn:hover:not(:disabled) { background: var(--ink); color: var(--paper); }
-.btn:active:not(:disabled) { background: #000; }
+.btn:active:not(:disabled) { background: var(--ink-2); }
 .btn:disabled { border-color: var(--rule); color: var(--off); cursor: not-allowed; background: var(--paper); }
 
 .btn.solid { background: var(--ink); color: var(--paper); }

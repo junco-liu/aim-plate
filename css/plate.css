@@ -33,7 +33,7 @@ body:not(.streaming) #view { display: none; }
 /* caption bar: ink when idle, press blue when the feed is live —
    the bar's fill is the state, not a coloured dot */
 .capbar {
-  background: var(--ink); color: var(--paper);
+  background: var(--cap-bg); color: var(--cap-ink);
   display: flex; align-items: center; gap: var(--s3);
   height: var(--capH); padding: 0 11px;
   font: 500 10.5px/1 var(--mono); letter-spacing: .04em;
@@ -76,7 +76,7 @@ body.streaming .capbar .mark i { animation: tick 1.6s steps(2) infinite; }
   position: absolute; inset: 0;
   display: grid; place-content: center; justify-items: center; gap: var(--s3);
   padding: var(--s6); text-align: center;
-  background: repeating-linear-gradient(-45deg, #EDEFEA 0 10px, var(--plate) 10px 20px);
+  background: repeating-linear-gradient(-45deg, var(--plate-2) 0 10px, var(--plate) 10px 20px);
 }
 body.streaming .ph { display: none; }
 .ph svg { width: 28px; height: 28px; stroke: var(--ink2); fill: none;
@@ -104,7 +104,7 @@ body.pristine #phHint { display: none; }
 .figno { margin: 9px auto 0; max-width: 760px; width: 100%;
   font: 400 11px/1.5 var(--mono); color: var(--ink2); }
 .figno kbd {
-  border: 1px solid var(--rule); background: #fff; padding: 1px 4px; margin: 0 1px;
+  border: 1px solid var(--rule); background: var(--field); padding: 1px 4px; margin: 0 1px;
   font: 500 10px/1 var(--mono); color: var(--ink);
 }
 

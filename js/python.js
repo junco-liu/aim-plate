@@ -167,7 +167,7 @@ robot.screen.hide_emoji()
 async function loadPy() {
   if (py || pyLoading) return;
   pyLoading = true;
-  $('pyState').textContent = '下载 Python 运行时（约 6 MB）…';
+  $('pyState').textContent = t('下载 Python 运行时（约 6 MB）…');
   try {
     const { loadPyodide } = await import(PY_URL);
     const p = await loadPyodide({ stdout: m => pylog(m), stderr: m => pylog(m, 'err') });
@@ -176,15 +176,16 @@ async function loadPy() {
     await p.runPythonAsync('from pyodide.ffi import run_sync\nimport js\nrun_sync(js.Promise.resolve(1))');
     p.runPython(AIM_PY, { filename: 'aim.py' });
     py = p;
-    $('pyState').textContent = `Python ${py.version} 就绪`;
+    $('pyState').textContent = `Python ${py.version} ` + t('就绪');
     acLoadNames();
-    pylog('API 与官方 vex 库一致：move_at / move_for / turn / turn_for / turn_to / ' +
-          'stop_all_movement · get_x_position / get_y_position / set_xy_position · ' +
+    pylog(t('API 与官方 vex 库一致：') +
+          'move_at / move_for / turn / turn_for / turn_to / stop_all_movement · ' +
+          'get_x_position / get_y_position / set_xy_position · ' +
           'inertial · screen · kicker · led · sound · vision', 'dim');
   } catch (e) {
-    $('pyState').textContent = '运行时加载失败';
+    $('pyState').textContent = t('运行时加载失败');
     pylog(String(e?.message ?? e).split('\n').pop(), 'err');
-    pylog('需要 Chrome / Edge（WebAssembly JSPI），并且能访问 cdn.jsdelivr.net。', 'dim');
+    pylog(t('需要 Chrome / Edge（WebAssembly JSPI），并且能访问 cdn.jsdelivr.net。'), 'dim');
   }
   pyLoading = false;
   pySync();
@@ -201,29 +202,29 @@ $('pyRun').onclick = async () => {
     // below can tell them from the user's "<exec>" ones
     py.runPython(AIM_PY, { filename: 'aim.py' });   // a fresh robot each run, see above
     await py.runPythonAsync($('pyCode').value);
-    pylog(`✓ 完成 ${Math.round(performance.now() - t0)}ms`, 'dim');
+    pylog(t('✓ 完成 {0}ms', Math.round(performance.now() - t0)), 'dim');
   } catch (e) {
     const msg = String(e?.message ?? e);
-    if (msg.includes(PY_STOP)) pylog(`■ 已停止 ${Math.round(performance.now() - t0)}ms`, 'dim');
+    if (msg.includes(PY_STOP)) pylog(t('■ 已停止 {0}ms', Math.round(performance.now() - t0)), 'dim');
     else {
       // a traceback carries Pyodide's own frames too; only the user's code and the
       // exception itself are worth showing
       const lines = msg.split('\n').filter(Boolean);
       pylog([...lines.filter(l => l.includes('<exec>')), lines.at(-1)].join('\n'), 'err');
-      log('Python 程序出错，已急停', true);
+      log(t('Python 程序出错，已急停'), true);
     }
   }
   // drive/turn are continuous commands: the program ending must mean the robot stopping,
   // whether it finished, crashed, or was stopped by hand
   await quiet(halt());
-  pylog('⊘ 已急停（drive 0 / turn 0）', 'dim');
+  pylog(t('⊘ 已急停（drive 0 / turn 0）'), 'dim');
   pyRunning = false;
   pySync();
 };
 
 // don't wait for Python to unwind — it may be mid-round-trip. Halt now; the run's own
 // finish halts again. That redundancy is deliberate, same as the rail's stop bar.
-$('pyStop').onclick = () => { pyAbort = true; quiet(halt()); pylog('停止…', 'dim'); };
+$('pyStop').onclick = () => { pyAbort = true; quiet(halt()); pylog(t('停止…'), 'dim'); };
 
 /* ── the editor ───────────────────────────────────────────
    A transparent textarea laid over a painted <pre>: every native editing behaviour
@@ -496,18 +497,18 @@ $('pyCopy').onclick = async () => {
   // the async clipboard wants a permission some embedders refuse outright; selecting the
   // field and copying it needs nothing beyond the click that already happened
   if (await navigator.clipboard?.writeText($('pyCode').value).then(() => 1, () => 0))
-    return pylog('已复制代码', 'dim');
+    return pylog(t('已复制代码'), 'dim');
   const t = $('pyCode'), a = t.selectionStart, b = t.selectionEnd;
   t.select();
   const done = document.execCommand('copy');
   t.setSelectionRange(a, b);                       // put the caret back where it was
-  pylog(done ? '已复制代码' : '复制失败 —— 请手动全选复制', done ? 'dim' : 'err');
+  pylog(t(done ? '已复制代码' : '复制失败 —— 请手动全选复制'), done ? 'dim' : 'err');
 };
 
 const setFull = on => {
   $('pyPanel').classList.toggle('full', on);
   $('pyFull').setAttribute('aria-pressed', on);
-  $('pyFull').title = on ? '退出全屏' : '全屏';
+  $('pyFull').title = t(on ? '退出全屏' : '全屏');
   $('pyFullIcon').setAttribute('href', on ? '#i-shrink' : '#i-expand');
 };
 $('pyFull').onclick = () => setFull(!$('pyPanel').classList.contains('full'));
