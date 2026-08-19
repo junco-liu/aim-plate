@@ -26,21 +26,38 @@ const scrPos = e => {
   return { x: (e.clientX - b.left) / b.width * SCR, y: (e.clientY - b.top) / b.height * SCR };
 };
 
-// One request in flight, always — the same discipline the Python client keeps.
+const fmtSec = s => s >= 60 ? `${Math.floor(s / 60)} 分 ${Math.round(s % 60)} 秒`
+                            : `${Math.max(1, Math.round(s))} 秒`;
+
+/* One request in flight, always — the same discipline the Python client keeps. Which is
+   why a whole-image send is tens of thousands of round trips: minutes, not seconds. So
+   the count, the share and the remaining time are all shown live, and the rate is
+   re-measured as it goes rather than trusting the one stored from last time. */
 async function runOps(ops) {
   if (busy || !ops.length) return;
   busy = true; abort = false;
   $('scrStop').disabled = false; $('scrSend').disabled = true;
+  $('scrBar').hidden = $('scrProg').hidden = false;
   const t0 = performance.now();
   let i = 0;
   for (; i < ops.length; i++) {
     if (abort || cmdWs?.readyState !== 1) break;
     try { await send(ops[i]); } catch { break; }
-    if ((i & 15) === 0) $('barFill').style.width = (i / ops.length * 100) + '%';
+    if ((i & 15) === 0) {
+      const done = (i + 1) / ops.length;
+      $('barFill').style.width = (done * 100) + '%';
+      const rate = i > 8 ? (performance.now() - t0) / (i + 1) : sendRate;
+      $('scrProg').textContent =
+        `${(i + 1).toLocaleString()} / ${ops.length.toLocaleString()} 条 · ` +
+        `${Math.round(done * 100)}%` +
+        (rate ? ` · 约剩 ${fmtSec((ops.length - i - 1) * rate / 1000)}` : '');
+    }
   }
   const dt = performance.now() - t0;
   if (i > 20) sendRate = dt / i;            // calibrate on the real link, then reuse
   $('barFill').style.width = '0';
+  $('scrBar').hidden = $('scrProg').hidden = true;
+  $('scrProg').textContent = '';       // or the next send flashes this one's last figure
   busy = false; $('scrStop').disabled = true;
   $('scrSend').disabled = !body.classList.contains('live') || !scrOps.length;
   if (i && ops.length > 8) log(`屏幕：发出 ${i}/${ops.length} 条，用时 ${(dt / 1000).toFixed(1)}s` +

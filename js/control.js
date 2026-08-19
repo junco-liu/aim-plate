@@ -133,8 +133,13 @@ $('vToggle').onchange = e => {
 
 /* ── commands ─────────────────────────────────────────── */
 
-const drive = angle => send({ cmd_id: 'drive', angle, speed: +$('speed').value, stacking_type: 0 });
-const spin  = dir   => send({ cmd_id: 'turn', turn_rate: dir * +$('turn').value, stacking_type: 0 });
+/* The sliders read out percent, the unit the official API takes, and the same two
+   factors convert it: 100% is 200 mm/s and 180 deg/s. The wire still carries absolutes. */
+const DRIVE_PCT_TO_MMPS = 2, TURN_PCT_TO_DPS = 1.8;
+const drive = angle => send({ cmd_id: 'drive', angle,
+  speed: Math.round(+$('speed').value * DRIVE_PCT_TO_MMPS), stacking_type: 0 });
+const spin  = dir   => send({ cmd_id: 'turn',
+  turn_rate: dir * Math.round(+$('turn').value * TURN_PCT_TO_DPS), stacking_type: 0 });
 const halt  = async () => {
   await send({ cmd_id: 'drive', angle: 0, speed: 0, stacking_type: 0 });
   await send({ cmd_id: 'turn', turn_rate: 0, stacking_type: 0 });
@@ -146,8 +151,8 @@ $('disconnect').onclick = disconnect;
 $('estop').onclick = () => { quiet(halt()); log('急停'); };
 $('ip').onkeydown = e => { if (e.key === 'Enter') connect(); };  // no bare `&&` — a falsy return cancels the keypress
 
-$('speed').oninput = e => $('speedv').textContent = e.target.value + ' mm/s';
-$('turn').oninput  = e => $('turnv').textContent  = e.target.value + ' °/s';
+$('speed').oninput = e => $('speedv').textContent = e.target.value + '%';
+$('turn').oninput  = e => $('turnv').textContent  = e.target.value + '%';
 
 $('camToggle').onchange = e => {
   if (e.target.checked) {

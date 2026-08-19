@@ -175,12 +175,12 @@
             <button class="btn need" disabled data-go="180" aria-label="后退"><svg class="icon" viewBox="0 0 24 24" style="transform:rotate(180deg)"><use href="#i-arrow"/></svg></button>
           </div>
           <div class="meter">
-            <div class="lab"><label for="speed">移动速度</label><b id="speedv">120 mm/s</b></div>
-            <input type="range" id="speed" min="20" max="200" step="10" value="120">
+            <div class="lab"><label for="speed">移动速度</label><b id="speedv">60%</b></div>
+            <input type="range" id="speed" min="10" max="100" step="5" value="60">
           </div>
           <div class="meter">
-            <div class="lab"><label for="turn">转向速度</label><b id="turnv">120 °/s</b></div>
-            <input type="range" id="turn" min="20" max="180" step="10" value="120">
+            <div class="lab"><label for="turn">转向速度</label><b id="turnv">65%</b></div>
+            <input type="range" id="turn" min="10" max="100" step="5" value="65">
           </div>
           <p class="keys">
             <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 或 <kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> 平移 · <kbd>Q</kbd><kbd>E</kbd> 转向 · <kbd>空格</kbd> 急停
@@ -236,7 +236,6 @@
               <button class="btn need" id="scrSend" disabled>发送</button>
               <button class="btn" id="scrStop" disabled>取消</button>
             </div>
-            <div class="bar"><i id="barFill"></i></div>
           </div>
 
           <div class="forEmo">
@@ -255,6 +254,9 @@
             <input type="color" id="bgColor" value="#000000" aria-label="背景色">
             <button class="btn need" id="scrClear" disabled>清屏</button>
           </div>
+
+          <p class="cost" id="scrProg" role="status" hidden></p>
+          <div class="bar" id="scrBar" hidden><i id="barFill"></i></div>
         </details>
 
         <details class="grp">

@@ -217,5 +217,9 @@ body:not(.m-pen) .forPen, body:not(.m-img) .forImg, body:not(.m-emo) .forEmo { d
 .emo.on { background: var(--ink); border-color: var(--ink); color: var(--paper); }
 .emo:focus-visible { outline: 2px solid var(--press); outline-offset: 2px; }
 .cost { margin: 9px 0 7px; font: 400 10.5px/1.5 var(--mono); color: var(--ink2); }
-.bar { height: 3px; background: var(--rule-2); margin-top: 7px; }
-.bar i { display: block; height: 100%; background: var(--press); width: 0; }
+/* the only feedback during a send that can run for minutes, so it is not hairline-thin */
+.bar { height: 5px; background: var(--rule-2); margin-top: 7px; }
+.bar[hidden] { display: none; }
+.bar i { display: block; height: 100%; background: var(--press); width: 0;
+  transition: width var(--fast); }
+#scrProg { margin: 9px 0 0; color: var(--ink); font-variant-numeric: tabular-nums; }
