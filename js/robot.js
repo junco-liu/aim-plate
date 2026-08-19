@@ -5,7 +5,7 @@
    unchanged, so this file is a port and not a design — where the official code does
    something surprising (move_at does not clamp negative velocity because the firmware
    flips it) the surprise is reproduced on purpose. The single deliberate divergence is
-   Led.on's integer index, see _light() for why.
+   Led.on's integer index, see _lights() for why.
 
    It lives in a .js file rather than a .py one because a .py would have to be
    fetch()ed, and fetch from file:// is CORS-blocked — that would cost the
@@ -198,16 +198,77 @@ class Color:
     TRANSPARENT = DefinedColor(0x000000, True)
 
 
-VisionObject = Enum('VisionObject',
-    [('ALL_VISION', 100), ('ALL_COLORS', 101), ('ALL_CODES', 102), ('ALL_TAGS', 103),
-     ('ALL_AIOBJS', 104), ('ALL_CARGO', 105), ('SPORTS_BALL', 200),
-     ('BLUE_BARREL', 201), ('ORANGE_BARREL', 202), ('AIM_ROBOT', 203)] +
-    [('TAG' + str(i), 300 + i) for i in range(38)])
+# get_data selects by a descriptor: a type mask plus an id, with MATCH_ALL_ID meaning
+# any id of that type. VisionObject bundles the ready-made ones, and a tuple of them
+# means "any of these" — VisionObject.ALL_CARGO is itself such a tuple.
+AIVISION_MAX_OBJECTS = 24
+MATCH_ALL_ID = 0xFFFF
 
-AI_CLASSNAME = {VisionObject.SPORTS_BALL: 'SportsBall',
-                VisionObject.BLUE_BARREL: 'BlueBarrel',
-                VisionObject.ORANGE_BARREL: 'OrangeBarrel',
-                VisionObject.AIM_ROBOT: 'Robot'}
+
+class _ObjectTypeMask:
+    unkownObject = 0
+    colorObject = 1 << 0
+    codeObject = 1 << 1
+    modelObject = 1 << 2
+    tagObject = 1 << 3
+    allObject = 0x3F
+
+
+class _Desc:
+    MASK = _ObjectTypeMask.allObject
+
+    def __init__(self, index):
+        self.id = index
+
+    def __int__(self):
+        return self.id
+
+    def __eq__(self, other):
+        if isinstance(other, type(self)):
+            return self.id == other.id
+        if isinstance(other, int):
+            return self.id == other
+        return False
+
+    def __hash__(self):
+        return hash((type(self).__name__, self.id))
+
+    def __repr__(self):
+        return type(self).__name__ + '(' + str(self.id) + ')'
+
+
+class Tagdesc(_Desc):
+    """holds an apriltag id"""
+    MASK = _ObjectTypeMask.tagObject
+
+
+class AiObjdesc(_Desc):
+    """holds an AI model class id"""
+    MASK = _ObjectTypeMask.modelObject
+
+
+class ObjDesc(_Desc):
+    """matches any object type"""
+    MASK = _ObjectTypeMask.allObject
+
+
+class Colordesc(_Desc):
+    """holds an AI vision colour signature"""
+    MASK = _ObjectTypeMask.colorObject
+
+    def __init__(self, index, red=0, green=0, blue=0, hangle=0, hdsat=0):
+        super().__init__(index)
+        self.red, self.green, self.blue = red, green, blue
+        self.hangle, self.hdsat = hangle, hdsat
+
+
+class Codedesc(_Desc):
+    """holds an AI vision colour code"""
+    MASK = _ObjectTypeMask.codeObject
+
+    def __init__(self, index, c1=None, c2=None, *args):
+        super().__init__(index)
+        self.colors = [c for c in (c1, c2) + args if c is not None]
 
 
 # ── globals, the names the official examples use bare ────────────────────────
@@ -254,8 +315,7 @@ for _s in SoundType:
 MOVE_FORWARD, MOVE_REVERSE = SoundType.FORWARD, SoundType.REVERSE
 TURN_RIGHT, TURN_LEFT = SoundType.RIGHT, SoundType.LEFT
 
-for _v in VisionObject:
-    globals()[_v.name] = _v
+# the VisionObject names are defined after class AiVision, which they are built from
 
 
 # ── unit conversion, upper clamp only — negatives are the firmware's job ─────
@@ -285,19 +345,32 @@ def _transparent(color):
     return color.transparent if isinstance(color, DefinedColor) else False
 
 
-def _light(led):
-    """LED index to wire name. 1 to 6, the numbering printed on the robot.
+def _lights(led):
+    """Which LEDs a first argument names, as wire names.
 
-    This is the one place that deliberately does NOT copy the official source: it maps
-    an int with light{n+1} over range(0, 6), so on(1) lights the second LED and on(6)
-    falls through to 'all'. Its own docstring example is robot.led.on(1, Color.BLUE)
-    meaning the first LED, so the source and the documented contract disagree — the
-    documented one wins here."""
+    Accepts what the documentation shows: one LightType, a bare 1 to 6 matching the
+    numbering printed on the robot, or a tuple/list of either —
+    robot.led.on((LED3, LED4), RED). ALL_LEDS and anything out of range mean all.
+
+    The integer case deliberately does NOT copy the official source, which maps
+    light{n+1} over range(0, 6): that makes on(1) light the second LED and on(6) fall
+    through to 'all', while the same function's docstring example is
+    robot.led.on(1, Color.BLUE) meaning the first LED. Source and documented contract
+    disagree, and the documented one wins here."""
+    if isinstance(led, (tuple, list, set, frozenset)):
+        if not led:
+            raise AimException('LED 集合是空的')
+        names = []
+        for one in led:
+            for name in _lights(one):
+                if name not in names:
+                    names.append(name)
+        return ['all'] if 'all' in names else names
     if isinstance(led, LightType):
-        return led.value
+        return [led.value]
     if isinstance(led, int) and 1 <= led <= 6:
-        return 'light' + str(led)
-    return 'all'
+        return ['light' + str(led)]
+    return ['all']
 
 
 class Robot:
@@ -514,7 +587,7 @@ class Robot:
 
     # ── cargo ────────────────────────────────────────────────────────────────
     def _held(self, classnames, min_cx, max_cx, min_y):
-        for obj in self.vision.get_data(VisionObject.ALL_AIOBJS):
+        for obj in self.vision.get_data(AiVision.ALL_AIOBJS):
             cx = obj.originX + obj.width / 2
             if obj.classname in classnames and min_cx < cx < max_cx and obj.originY > min_y:
                 return True
@@ -806,7 +879,7 @@ class Led:
         An int index is 1 to 6, matching the LED numbering on the robot."""
         if len(args) not in (2, 4):
             raise TypeError('must have two or four arguments')
-        light = _light(args[0])
+        lights = _lights(args[0])
         if len(args) == 2:
             if isinstance(args[1], bool):        # True is white, False is off
                 r = g = b = 128 if args[1] else 0
@@ -816,101 +889,167 @@ class Led:
                 r, g, b = _rgb(args[1])
         else:
             r, g, b = args[1], args[2], args[3]
-        self.robot_instance.robot_send({'cmd_id': 'light_set',
-                                        light: {'r': r, 'g': g, 'b': b}})
+        # one command per light: light_set carries a single light key, which is the shape
+        # the rail's own buttons already prove against real hardware
+        for light in lights:
+            self.robot_instance.robot_send({'cmd_id': 'light_set',
+                                            light: {'r': r, 'g': g, 'b': b}})
 
     def off(self, led=LightType.ALL_LEDS):
-        """turn one LED, or all of them, off"""
-        self.robot_instance.robot_send({'cmd_id': 'light_set',
-                                        _light(led): {'r': 0, 'g': 0, 'b': 0}})
+        """turn one LED, a tuple of them, or all of them, off"""
+        for light in _lights(led):
+            self.robot_instance.robot_send({'cmd_id': 'light_set',
+                                            light: {'r': 0, 'g': 0, 'b': 0}})
 
 
 class AiVisionObject:
-    """one detection, with the official attribute names"""
+    """One detection. Every attribute the official class defines is present, including
+    the ones that are aliases (rotation is angle) or derived (area is width * height),
+    because user code reads them by name."""
 
-    def __init__(self, index, obj, classnames):
-        type_bits = int(obj['type'])
-        self.index = index
-        self.id = int(obj['id'])
-        self.originX = int(obj['originx'])
-        self.originY = int(obj['originy'])
-        self.width = int(obj['width'])
-        self.height = int(obj['height'])
-        self.centerX = self.originX + self.width / 2
-        self.centerY = self.originY + self.height / 2
+    class Tag:
+        """the four corners of an apriltag"""
+
+        def __init__(self):
+            self.x = (0, 0, 0, 0)
+            self.y = (0, 0, 0, 0)
+
+    def __init__(self):
+        self.type = 0
+        self.id = 0
+        self.originX = 0
+        self.originY = 0
+        self.centerX = 0
+        self.centerY = 0
+        self.width = 0
+        self.height = 0
         self.exists = True
-        if type_bits & 8:
-            self.type = 'tag'
-            self.classname = 'Tag' + str(self.id)
-            self.angle = float(obj.get('angle', 0))
-        else:
-            self.type = 'aiobj' if type_bits & 4 else ('code' if type_bits & 2 else 'color')
-            self.classname = classnames.get(self.id, obj.get('name', 'AI' + str(self.id)))
-            # colour and code angles arrive in centi-degrees
-            self.angle = float(obj.get('angle', 0)) * (1 if type_bits & 4 else 0.01)
-        self.score = None if obj.get('score') is None else float(obj['score'])
-        # same polynomial the official client uses to turn frame pixels into a bearing
-        cx, cy = self.centerX, self.centerY
-        self.bearing = (-34.656 + cx * 0.22539 + cy * 0.011526
-                        + cx * cx * -0.000042011 + cx * cy * 0.000010433
-                        + cy * cy * -0.00007073)
+        self.angle = 0.0
+        self.rotation = 0.0
+        self.score = 0
+        self.area = 0
+        self.bearing = 0.0
+        self.classname = ''
+        self.color = None      # not used over websocket
+        self.tag = AiVisionObject.Tag()
 
     def __repr__(self):
-        return ('AiVisionObject(' + self.classname + ' at ' + str(int(self.centerX))
-                + ',' + str(int(self.centerY)) + ')')
+        return ('AiVisionObject(' + (self.classname or 'type' + str(self.type))
+                + ' at ' + str(self.centerX) + ',' + str(self.centerY)
+                + ' area ' + str(self.area) + ')')
 
 
 class AiVision:
-    ALL_VISION = VisionObject.ALL_VISION
-    ALL_TAGS = VisionObject.ALL_TAGS
-    ALL_AIOBJS = VisionObject.ALL_AIOBJS
-    ALL_CARGO = VisionObject.ALL_CARGO
+    ALL_TAGS = Tagdesc(MATCH_ALL_ID)
+    ALL_COLORS = Colordesc(MATCH_ALL_ID)
+    ALL_CODES = Codedesc(MATCH_ALL_ID)
+    ALL_AIOBJS = AiObjdesc(MATCH_ALL_ID)
+    ALL_OBJECTS = ObjDesc(MATCH_ALL_ID)
+    ALL_AIOBJECTS = AiObjdesc(MATCH_ALL_ID)
 
     def __init__(self, robot_instance):
         self.robot_instance = robot_instance
+        self._object_count_val = 0
+        self._largest_object = None
 
-    def get_data(self, type=VisionObject.ALL_VISION, count=8):
-        """the objects the robot currently sees, newest packet only.
+    def get_data(self, type=None, count=8):
+        """The objects the robot sees in the newest status packet, largest first.
+
+        type is a descriptor (VisionObject.ALL_CARGO, TAG7, AiVision.ALL_TAGS, ...) or a
+        tuple of them meaning any-of. A bare int is treated as an object id.
+
         The rail's 「视觉」 checkboxes gate what the robot even detects — anything
-        unticked there is switched off at the source and will never appear here."""
+        unticked there is switched off at the source and never reaches this list."""
+        if type is None:
+            type = VisionObject.ALL_VISION
+        match_tuple = None
+        id = MATCH_ALL_ID
+        if isinstance(type, (tuple, list)):
+            match_tuple = type
+            if not match_tuple:
+                raise AimException('tuple passed to get_data is empty')
+            type_mask = _ObjectTypeMask.allObject
+        elif isinstance(type, _Desc):
+            type_mask = type.MASK
+            id = type.id
+        else:
+            type_mask = _ObjectTypeMask.allObject
+            id = type          # assume an object id, including match-all
+
+        if count > AIVISION_MAX_OBJECTS:
+            count = AIVISION_MAX_OBJECTS
+
         packet = self.robot_instance.status.get('aivision') or {}
-        classnames = {}
-        for item in (packet.get('classnames') or {}).get('items', []):
-            classnames[int(item['index'])] = item['name']
-        items = (packet.get('objects') or {}).get('items', [])
-        n = min(int((packet.get('objects') or {}).get('count', 0)), len(items), count)
-        objects = [AiVisionObject(i, items[i], classnames) for i in range(n)]
-        return [o for o in objects if self._matches(o, type)]
+        objects = packet.get('objects') or {}
+        items = objects.get('items') or []
+        names = (packet.get('classnames') or {}).get('items') or []
+        item_count = min(int(objects.get('count', 0)), len(items))
 
-    def _matches(self, obj, want):
-        if want == VisionObject.ALL_VISION:
-            return True
-        if want == VisionObject.ALL_TAGS:
-            return obj.type == 'tag'
-        if want == VisionObject.ALL_AIOBJS:
-            return obj.type == 'aiobj'
-        if want == VisionObject.ALL_COLORS:
-            return obj.type == 'color'
-        if want == VisionObject.ALL_CODES:
-            return obj.type == 'code'
-        if want == VisionObject.ALL_CARGO:
-            return obj.classname in ('BlueBarrel', 'OrangeBarrel', 'SportsBall')
-        if want in AI_CLASSNAME:
-            return obj.classname == AI_CLASSNAME[want]
-        if want.name.startswith('TAG'):
-            return obj.type == 'tag' and obj.id == int(want.name[3:])
-        return False
+        all_objects = []
+        for item in items[:item_count]:
+            obj = AiVisionObject()
+            obj.type = int(item['type'])
+            obj.id = int(item['id'])
+            obj.originX = int(item['originx'])
+            obj.originY = int(item['originy'])
+            obj.width = int(item['width'])
+            obj.height = int(item['height'])
+            obj.centerX = int(obj.originX + obj.width / 2)
+            obj.centerY = int(obj.originY + obj.height / 2)
+            # colour and code angles arrive in centi-degrees; tags report degrees
+            if obj.type in (_ObjectTypeMask.colorObject, _ObjectTypeMask.codeObject):
+                obj.angle = float(item.get('angle', 0)) * 0.01
+            elif obj.type == _ObjectTypeMask.tagObject:
+                obj.angle = float(item.get('angle', 0))
+                obj.tag.x = tuple(int(item.get('x' + str(k), 0)) for k in range(4))
+                obj.tag.y = tuple(int(item.get('y' + str(k), 0)) for k in range(4))
+            if obj.type == _ObjectTypeMask.modelObject:
+                # official indexes the classnames list positionally by object id
+                if 0 <= obj.id < len(names):
+                    obj.classname = names[obj.id]['name']
+                obj.score = item.get('score', 0)
+            obj.rotation = obj.angle
+            obj.area = obj.width * obj.height
+            cx, cy = obj.centerX, obj.centerY
+            obj.bearing = (-34.656 + cx * 0.22539 + cy * 0.011526
+                           + cx * cx * -0.000042011 + cx * cy * 0.000010433
+                           + cy * cy * -0.00007073)
+            all_objects.append(obj)
 
-    def object_count(self, type=VisionObject.ALL_VISION):
-        """how many objects of a kind the robot sees right now"""
-        return len(self.get_data(type, 64))
+        matched = []
+        for obj in all_objects:
+            if not obj.type & type_mask:
+                continue
+            if match_tuple is not None:
+                if not any(self._member_matches(obj, one) for one in match_tuple):
+                    continue
+            elif not (obj.id == id or id == MATCH_ALL_ID):
+                continue
+            matched.append(obj)
 
-    def largest_object(self, type=VisionObject.ALL_VISION):
-        """the biggest object of a kind, or None"""
-        objects = self.get_data(type, 64)
-        if not objects:
-            return None
-        return max(objects, key=lambda o: o.width * o.height)
+        matched.sort(key=lambda o: o.area, reverse=True)   # largest first, as official
+        self._object_count_val = min(len(matched), count)
+        self._largest_object = matched[0] if matched else None
+        return matched[:self._object_count_val]
+
+    def _member_matches(self, obj, want):
+        """one tuple member: its own type must match, then its id or match-all"""
+        if isinstance(want, (tuple, list)):
+            return any(self._member_matches(obj, one) for one in want)
+        if isinstance(want, _Desc):
+            if want.MASK != _ObjectTypeMask.allObject and not obj.type & want.MASK:
+                return False
+            return obj.id == want.id or want.id == MATCH_ALL_ID
+        return obj.id == int(want) or int(want) == MATCH_ALL_ID
+
+    def object_count(self, type=None):
+        """how many matching objects the robot sees right now"""
+        return len(self.get_data(type, AIVISION_MAX_OBJECTS))
+
+    def largest_object(self, type=None):
+        """the biggest matching object, or None"""
+        objects = self.get_data(type, AIVISION_MAX_OBJECTS)
+        return objects[0] if objects else None
 
     def tag_detection(self, enable):
         """switch AprilTag detection on the robot on or off"""
@@ -924,6 +1063,32 @@ class AiVision:
     def model_detection(self, enable):
         """switch the trained-object model on the robot on or off"""
         self.robot_instance.robot_send({'cmd_id': 'model_detection', 'b_enable': bool(enable)})
+
+
+class VisionObject:
+    """the ready-made get_data descriptors. ALL_COLORS and ALL_CARGO are tuples."""
+    SPORTS_BALL = AiObjdesc(0)
+    BLUE_BARREL = AiObjdesc(1)
+    ORANGE_BARREL = AiObjdesc(2)
+    AIM_ROBOT = AiObjdesc(3)
+    ALL_TAGS = Tagdesc(MATCH_ALL_ID)
+    ALL_VISION = ObjDesc(MATCH_ALL_ID)
+    ALL_COLORS = (AiVision.ALL_COLORS, AiVision.ALL_CODES)
+    ALL_CARGO = (SPORTS_BALL, BLUE_BARREL, ORANGE_BARREL)
+
+for _i in range(38):
+    setattr(VisionObject, 'TAG' + str(_i), Tagdesc(_i))
+
+SPORTS_BALL = VisionObject.SPORTS_BALL
+BLUE_BARREL = VisionObject.BLUE_BARREL
+ORANGE_BARREL = VisionObject.ORANGE_BARREL
+AIM_ROBOT = VisionObject.AIM_ROBOT
+ALL_TAGS = VisionObject.ALL_TAGS
+ALL_VISION = VisionObject.ALL_VISION
+ALL_COLORS = VisionObject.ALL_COLORS
+ALL_CARGO = VisionObject.ALL_CARGO
+for _i in range(38):
+    globals()['TAG' + str(_i)] = getattr(VisionObject, 'TAG' + str(_i))
 
 
 class Timer:

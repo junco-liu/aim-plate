@@ -60,6 +60,26 @@ robot.stop_all_movement()
 `show_file` —— 协议里没有上传通道，这条路本来就是死的；`color_description` /
 `code_description`；`get_camera_image` —— 画面已经在图版上了。
 
+灯光和视觉筛选的第一个参数都可以是**集合**，跟文档一致：
+
+```python
+robot.led.on((LED3, LED4), RED)          # 元组，也可以是 [1, 6]
+robot.led.on(3, True)                    # True 是白，None 是熄灭
+robot.led.off((LED3, LED4))
+robot.vision.get_data((ALL_TAGS, ALL_CARGO))    # 命中任一即算
+```
+
+`get_data` 的筛选参数是官方那套**描述符**（`Tagdesc` / `AiObjdesc` / `ObjDesc` /
+`Colordesc` / `Codedesc`），现成的挂在 `VisionObject` 和 `AiVision` 上：`ALL_VISION`
+`ALL_TAGS` `ALL_COLORS` `ALL_CARGO` `TAG0`–`TAG37` `SPORTS_BALL` `BLUE_BARREL`
+`ORANGE_BARREL` `AIM_ROBOT` `AiVision.ALL_AIOBJS`。返回值**按面积从大到小排序**，
+所以 `largest_object()` 就是第 0 个。`AiVisionObject` 的属性与官方同名同义：
+`type`（原始类型掩码整数，不是字符串）`id` `originX/Y` `centerX/Y` `width` `height`
+`area` `angle` `rotation` `score` `exists` `bearing` `classname` `color` `tag.x` `tag.y`。
+
+`light_set` 一条只带一个灯珠键，所以元组会逐个下发 —— 这是右栏灯光按钮已在真机上
+跑通的形状，不去赌多键同报文能不能被固件接受。
+
 **与官方源码唯一一处刻意不一致**：`robot.led.on(n, ...)` 的整数编号这里是 **1–6**，
 和机器人上印的编号一致。官方源码写的是 `light{n+1}` 且判定区间是 `range(0, 6)`，于是
 `on(1)` 亮的是第二颗、`on(6)` 会掉进 `else` 变成全部 —— 但它自己的 docstring 例子是
