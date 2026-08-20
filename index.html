@@ -86,87 +86,102 @@
 
     <div class="cols" id="cols">
       <div class="plateWrap">
-        <div class="stageArea">
-          <div class="plateBox">
-            <div class="figure">
-              <img id="view" alt="机器人摄像头实时画面">
-              <div class="ph">
-                <svg viewBox="0 0 24 24"><use href="#i-video-off"/></svg>
-                <p id="phTitle">尚未连接机器人</p>
-                <p id="phHint">确认设备与机器人在同一局域网，输入 IP 后点击「连接」。</p>
-                <ol class="steps">
-                  <li data-i18n-html="steps-1">把机器人开机，让它和这台设备连到<b>同一个 Wi-Fi</b>；
-                      也可以直接连机器人自己的热点，此时 IP 是 <b>192.168.4.1</b>。</li>
-                  <li data-i18n-html="steps-2">在上方填入机器人的 <b>IP 地址</b>，按「连接」。</li>
-                  <li data-i18n-html="steps-3">浏览器若询问<b>是否允许访问本地网络设备</b>，请点允许。</li>
-                  <li data-i18n-html="steps-4">连上后拨动下方图注条里的<b>「画面」开关</b>，即可看到实时画面。</li>
-                </ol>
-              </div>
-              <svg id="vlay" viewBox="0 0 320 240" preserveAspectRatio="xMidYMid meet"
-                   aria-hidden="true"></svg>
-              <div class="scr">
-                <div class="scrBox">
-                  <canvas id="scrCv"></canvas>
-                  <img id="emoView" alt="">
-                  <div class="emoLbl" id="emoLbl"></div>
-                  <svg id="scrMask" viewBox="0 0 240 240" aria-hidden="true">
-                    <defs>
-                      <pattern id="hatch" width="7" height="7" patternUnits="userSpaceOnUse"
-                               patternTransform="rotate(45)">
-                        <rect width="7" height="7" fill="#00000073"/>
-                        <line x1="0" y1="0" x2="0" y2="7" stroke="#FFFFFF38" stroke-width="3.5"/>
-                      </pattern>
-                      <mask id="corners">
-                        <rect width="240" height="240" fill="#fff"/>
-                        <circle cx="120" cy="120" r="120" fill="#000"/>
-                      </mask>
-                    </defs>
-                    <rect width="240" height="240" fill="url(#hatch)" mask="url(#corners)"/>
-                    <circle cx="120" cy="120" r="119.5" fill="none" stroke="#FFFFFF4D"/>
-                    <path d="M120 110v20M110 120h20" stroke="#FFFFFF4D"/>
-                  </svg>
+        <!-- The plate and its readout share one row while there is width for both,
+             and stack when there is not. -->
+        <div class="stage">
+          <div class="stageArea">
+            <div class="plateBox">
+              <div class="figure">
+                <img id="view" alt="机器人摄像头实时画面">
+                <div class="ph">
+                  <svg viewBox="0 0 24 24"><use href="#i-video-off"/></svg>
+                  <p id="phTitle">尚未连接机器人</p>
+                  <p id="phHint">确认设备与机器人在同一局域网，输入 IP 后点击「连接」。</p>
+                  <ol class="steps">
+                    <li data-i18n-html="steps-1">把机器人开机，让它和这台设备连到<b>同一个 Wi-Fi</b>；
+                        也可以直接连机器人自己的热点，此时 IP 是 <b>192.168.4.1</b>。</li>
+                    <li data-i18n-html="steps-2">在上方填入机器人的 <b>IP 地址</b>，按「连接」。</li>
+                    <li data-i18n-html="steps-3">浏览器若询问<b>是否允许访问本地网络设备</b>，请点允许。</li>
+                    <li data-i18n-html="steps-4">连上后拨动下方图注条里的<b>「画面」开关</b>，即可看到实时画面。</li>
+                  </ol>
+                </div>
+                <svg id="vlay" viewBox="0 0 320 240" preserveAspectRatio="xMidYMid meet"
+                     aria-hidden="true"></svg>
+                <div class="scr">
+                  <div class="scrBox">
+                    <canvas id="scrCv"></canvas>
+                    <img id="emoView" alt="">
+                    <div class="emoLbl" id="emoLbl"></div>
+                    <svg id="scrMask" viewBox="0 0 240 240" aria-hidden="true">
+                      <defs>
+                        <pattern id="hatch" width="7" height="7" patternUnits="userSpaceOnUse"
+                                 patternTransform="rotate(45)">
+                          <rect width="7" height="7" fill="#00000073"/>
+                          <line x1="0" y1="0" x2="0" y2="7" stroke="#FFFFFF38" stroke-width="3.5"/>
+                        </pattern>
+                        <mask id="corners">
+                          <rect width="240" height="240" fill="#fff"/>
+                          <circle cx="120" cy="120" r="120" fill="#000"/>
+                        </mask>
+                      </defs>
+                      <rect width="240" height="240" fill="url(#hatch)" mask="url(#corners)"/>
+                      <circle cx="120" cy="120" r="119.5" fill="none" stroke="#FFFFFF4D"/>
+                      <path d="M120 110v20M110 120h20" stroke="#FFFFFF4D"/>
+                    </svg>
+                  </div>
                 </div>
               </div>
-            </div>
-            <div class="capbar">
-              <div class="tabs" role="tablist">
-                <button class="tab on" id="tabCam" role="tab" aria-selected="true">画面</button>
-                <button class="tab" id="tabScr" role="tab" aria-selected="false">屏幕</button>
+              <div class="capbar">
+                <div class="tabs" role="tablist">
+                  <button class="tab on" id="tabCam" role="tab" aria-selected="true">画面</button>
+                  <button class="tab" id="tabScr" role="tab" aria-selected="false">屏幕</button>
+                </div>
+                <span class="mark"><i></i><span id="capState">未连接</span></span>
+                <span class="sp camOnly" id="capMeta">—</span>
+                <span class="sp" id="scrMeta" hidden>240 × 240 · 可见区 r=120</span>
+                <label class="camSwitch camOnly">
+                  <input type="checkbox" id="camToggle" class="need" role="switch"
+                         disabled aria-label="摄像头画面开关">
+                  <span class="track"><span class="knob"></span></span>
+                  <span>画面</span>
+                </label>
+                <label class="camSwitch camOnly">
+                  <input type="checkbox" id="vToggle" class="need" role="switch"
+                         disabled aria-label="AI 视觉标注开关">
+                  <span class="track"><span class="knob"></span></span>
+                  <span>标注</span>
+                </label>
               </div>
-              <span class="mark"><i></i><span id="capState">未连接</span></span>
-              <span class="sp camOnly" id="capMeta">—</span>
-              <span class="sp" id="scrMeta" hidden>240 × 240 · 可见区 r=120</span>
-              <label class="camSwitch camOnly">
-                <input type="checkbox" id="camToggle" class="need" role="switch"
-                       disabled aria-label="摄像头画面开关">
-                <span class="track"><span class="knob"></span></span>
-                <span>画面</span>
-              </label>
-              <label class="camSwitch camOnly">
-                <input type="checkbox" id="vToggle" class="need" role="switch"
-                       disabled aria-label="AI 视觉标注开关">
-                <span class="track"><span class="knob"></span></span>
-                <span>标注</span>
-              </label>
             </div>
           </div>
+
+          <!-- Only on screen while 标注 is on: with the annotation off there is nothing
+               to read, and the plate keeps every pixel it had. -->
+          <section class="vpanel" id="vpanel" aria-label="视觉信息">
+            <div class="vhead">
+              <h2>视觉 <u>VISION</u></h2>
+              <button class="vtog" id="vtog" aria-expanded="false">
+                <span id="vcount">目标 0</span>
+                <span class="von">收拢</span><span class="voff">展开</span>
+                <svg class="icon" viewBox="0 0 24 24"><use href="#i-chevron"/></svg>
+              </button>
+            </div>
+            <!-- One row per object, area first. Which columns are on show is the panel's
+                 width's business, not JavaScript's — every cell is always rendered. -->
+            <div class="vlist" id="vlist">
+              <div class="vrow vh">
+                <i></i><span class="nm">目标</span><span class="cen">中心 X, Y</span>
+                <span class="org">原点 X, Y</span><span class="size">宽 × 高</span>
+                <span class="bear">方位</span><span class="rot">旋转</span><span class="sco">置信</span>
+              </div>
+              <div id="vrows"></div>
+            </div>
+            <p class="vempty" id="vempty">没有识别到目标。</p>
+          </section>
         </div>
         <p class="figno" data-i18n-html="figno">
           按住方向键即走，松开即停。<kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 或 <kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> 平移 · <kbd>Q</kbd><kbd>E</kbd> 转向 · <kbd>空格</kbd> 急停。
         </p>
-        <details class="vt" id="vdetail">
-          <summary><svg class="icon" viewBox="0 0 24 24"><use href="#i-chevron"/></svg>视觉详细信息</summary>
-          <div class="vwrap">
-            <table class="vtab">
-              <thead><tr>
-                <th>目标</th><th>中心 X, Y</th><th>原点 X, Y</th><th>宽 × 高</th>
-                <th>方位</th><th>旋转</th><th>置信</th>
-              </tr></thead>
-              <tbody id="vrows"></tbody>
-            </table>
-          </div>
-          <p class="vempty" id="vempty">没有识别到目标。</p>
-        </details>
       </div>
 
       <button class="split" id="split" role="separator" aria-orientation="vertical"

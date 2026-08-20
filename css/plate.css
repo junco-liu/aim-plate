@@ -20,7 +20,8 @@ body.dragging .figure, body.dragging #scrCv { pointer-events: none; }
 
 /* ── the plate ──────────────────────────────────────────── */
 .plateWrap { padding: var(--s5); display: flex; flex-direction: column;
-  min-width: 0; min-height: 0; }
+  min-width: 0; min-height: 0; container-type: inline-size; }
+.stage { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .stageArea { display: grid; place-items: center; min-height: 0; }
 .plateBox {
   border: 1px solid var(--ink);
@@ -134,28 +135,85 @@ body.vlay #vlay { display: block; }
 .sig:has(input:disabled) { cursor: not-allowed; opacity: .5; }
 .sig:has(input:focus-visible) { outline: 2px solid var(--press); outline-offset: 2px; }
 
-details.vt { max-width: 760px; width: 100%; margin: 9px auto 0;
-  border-top: 1px solid var(--rule); }
-details.vt summary {
-  padding: 9px 0 0; cursor: pointer; list-style: none;
-  display: flex; align-items: center; gap: 6px;
+/* ── the vision readout ─────────────────────────────────────
+   It is the picture's companion, so it lives with the picture, not in the rail — the
+   rail is controls only. Two placements, one block: beside the plate while the column
+   is wide enough for both, under it when it is not. And it is only on screen while
+   标注 is on, so the default view gives up nothing.
+   Sorted by area, largest first. The panel never says so and never prints an area —
+   the order IS the statement. */
+.vpanel { display: none; flex-direction: column; min-height: 0;
+  margin-top: 11px; padding-top: 13px; border-top: 1px solid var(--rule);
+  max-height: 190px; }                 /* stacked: the plate lends this much, never more */
+body.vlay .vpanel { display: flex; }
+
+.vhead { display: flex; align-items: center; gap: var(--s3); flex: none; }
+.vhead h2 { margin: 0; display: flex; align-items: baseline; gap: var(--s2);
+  font: 650 11px/1 var(--sans); letter-spacing: .06em; text-transform: uppercase; }
+.vhead h2 u { text-decoration: none; font: 400 9.5px/1 var(--mono);
+  letter-spacing: .1em; color: var(--ink2); }
+html[lang="en"] .vhead h2 u { display: none; }   /* it would just repeat the heading */
+
+.vtog { appearance: none; background: none; border: 0; padding: 0; margin-left: auto;
+  display: flex; align-items: center; gap: 6px; cursor: pointer;
   font: 400 10.5px/1 var(--mono); color: var(--ink2);
-}
-details.vt summary::-webkit-details-marker { display: none; }
-details.vt summary .icon { width: 12px; height: 12px; transition: transform var(--fast); }
-details.vt[open] summary .icon { transform: rotate(90deg); }
-.vwrap { max-height: 170px; overflow: auto; margin-top: 7px; }
-.vtab { border-collapse: collapse; width: 100%; min-width: 560px;
-  font: 400 11px/1.65 var(--mono); color: var(--ink2); }
-.vtab th { position: sticky; top: 0; background: var(--paper);
-  text-align: left; font-weight: 500; color: var(--ink); white-space: nowrap;
-  padding: 0 10px 3px 0; border-bottom: 1px solid var(--rule); }
-.vtab td { padding: 2px 10px 2px 0; white-space: nowrap;
-  font-variant-numeric: tabular-nums; }
-.vtab tbody tr + tr td { border-top: 1px solid var(--rule-2); }
-.vtab .k { color: var(--ink); }
-.vtab .k i { display: inline-block; width: 8px; height: 8px; margin-right: 6px; }
+  -webkit-tap-highlight-color: transparent; }
+.vtog .von, .vtog .voff { color: var(--off); }
+body.vexp .vtog .voff, body:not(.vexp) .vtog .von { display: none; }
+.vtog .icon { width: 12px; height: 12px; transition: transform var(--fast); }
+body.vexp .vtog .icon { transform: rotate(90deg); }
+.vtog:focus-visible { outline: 2px solid var(--press); outline-offset: 2px; }
+
+.vlist { margin-top: 8px; min-height: 0; overflow: auto;
+  border-top: 1px solid var(--rule-2);
+  container: vlist / inline-size; }     /* the columns answer to this, not to the viewport */
+.vrow { display: flex; flex-wrap: nowrap; align-items: center; gap: 3px 7px; height: 23px;
+  font: 400 11px/1 var(--mono); font-variant-numeric: tabular-nums; color: var(--ink2); }
+#vrows .vrow { border-top: 1px solid var(--rule-2); }
+#vrows .vrow:first-child { border-top: 0; }
+.vrow i { width: 9px; height: 9px; flex: none; }
+.vrow .nm { flex: 1 1 40px; min-width: 40px; color: var(--ink);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* every column is as wide as its own head needs and not a pixel more — that is what
+   buys the whole row a single line at 452px of panel */
+.vrow .cen, .vrow .org { flex: none; width: 60px; }
+.vrow .size { flex: none; width: 56px; }
+.vrow .bear, .vrow .rot { flex: none; width: 46px; text-align: right; }
+.vrow .sco { flex: none; width: 30px; text-align: right; }
+/* the head is one of the rows, so it cannot drift out of step with them */
+.vrow.vh { position: sticky; top: 0; z-index: 1; height: 20px;
+  background: var(--paper); color: var(--ink); font-size: 10px; letter-spacing: .04em; }
+/* hovering a row thickens its box on the plate — see visionRender */
+#vrows .vrow:hover { background: var(--rule-2); color: var(--ink); }
+
+/* Collapsed: no row ever wraps or scrolls sideways — a column that does not fit is
+   simply not there, and comes back as the panel gets wider. */
+body:not(.vexp) .vrow .cen, body:not(.vexp) .vrow .org,
+body:not(.vexp) .vrow .rot, body:not(.vexp) .vrow .sco { display: none; }
+@container vlist (min-width: 260px) { body:not(.vexp) .vrow .cen { display: block; } }
+@container vlist (min-width: 340px) { body:not(.vexp) .vrow .sco { display: block; } }
+@container vlist (min-width: 420px) { body:not(.vexp) .vrow .rot { display: block; } }
+@container vlist (min-width: 500px) { body:not(.vexp) .vrow .org { display: block; } }
+
+/* Expanded: nothing is dropped. Wide enough and a target is one line; too narrow and
+   the overflow wraps to a second, which beats a horizontal scrollbar. */
+body.vexp .vrow { flex-wrap: wrap; height: auto; min-height: 23px; padding: 3px 0; }
+body.vexp .vrow.vh { padding-bottom: 4px; }
+
 .vempty { margin: 8px 0 0; font: 400 11px/1.6 var(--mono); color: var(--off); }
+
+/* Side by side. The panel takes width from the plate and none of its height, which is
+   the whole point: the picture stops shrinking every time a target appears. */
+@container (min-width: 660px) {
+  .stage { flex-direction: row-reverse; gap: var(--s3); }
+  .stageArea { width: auto; }              /* responsive.css sets 100% for the one-column case */
+  .vpanel { width: 216px; flex: none; max-height: none;
+    margin: 0; padding: 0 var(--s3) 0 0;
+    border-top: 0; border-right: 1px solid var(--rule); }
+  .vlist { flex: 1; }
+}
+/* 464 of panel is what a whole row needs on one line; below this, expanded rows wrap */
+@container (min-width: 900px) { body.vexp .vpanel { width: 464px; } }
 
 /* ── the robot's screen: a second content for the same plate ─ */
 /* 240×240 coordinates, physically a circle of r=120 — the corners are 21% of

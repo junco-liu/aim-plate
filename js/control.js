@@ -87,31 +87,58 @@ function visionParse(v) {
   return out;
 }
 
+/* The rows and the boxes are the same list in the same order — largest first, because
+   the nearest thing usually matters most and the panel then needs no sort control.
+   hovI ties them together: hovering a row thickens its box on the plate. */
+let lastObjs = [], hovI = null;
+
 function visionRender(objs) {
+  lastObjs = objs;
   for (const k in SIGS) $('n_' + k).textContent = objs.filter(o => o.kind === k).length;
 
-  const shown = objs.filter(o => SIGS[o.kind] && sigOn(o.kind));
+  const shown = objs.filter(o => SIGS[o.kind] && sigOn(o.kind))
+                    .sort((a, b) => b.w * b.h - a.w * a.h);
   const name = o => o.kind === 'tag' ? `TAG ${o.id}` : SIGS[o.kind].label;
 
-  $('vlay').innerHTML = !body.classList.contains('vlay') ? '' : shown.map(o => {
-    const c = SIGS[o.kind].c;
-    return (o.quad ? `<polygon points="${o.quad}" fill="none" stroke="${c}" stroke-width="1.6"/>`
-                   : `<rect x="${o.x}" y="${o.y}" width="${o.w}" height="${o.h}" fill="none" stroke="${c}" stroke-width="1.6"/>`)
+  $('vlay').innerHTML = !body.classList.contains('vlay') ? '' : shown.map((o, i) => {
+    const c = SIGS[o.kind].c, w = i === hovI ? 3 : 1.6;
+    return (o.quad ? `<polygon data-i="${i}" points="${o.quad}" fill="none" stroke="${c}" stroke-width="${w}"/>`
+                   : `<rect data-i="${i}" x="${o.x}" y="${o.y}" width="${o.w}" height="${o.h}" fill="none" stroke="${c}" stroke-width="${w}"/>`)
          + `<text x="${o.x}" y="${Math.max(9, o.y - 3)}" fill="${c}">${name(o)}</text>`;
   }).join('');
 
-  if (!$('vdetail').open) return;          // nobody is reading the rows — don't build them
+  // the panel is hidden with the annotation off — nobody is reading the rows
+  if (!body.classList.contains('vlay')) return;
+  $('vcount').textContent = t('目标 {0}', shown.length);
   $('vempty').hidden = shown.length > 0;
-  $('vrows').innerHTML = shown.map(o => `<tr>
-      <td class="k"><i style="background:${SIGS[o.kind].c}"></i>${name(o)}</td>
-      <td>${Math.round(o.cx)}, ${Math.round(o.cy)}</td>
-      <td>${o.x}, ${o.y}</td>
-      <td>${o.w} × ${o.h}</td>
-      <td>${o.bearing.toFixed(1)}°</td>
-      <td>${o.rot.toFixed(1)}°</td>
-      <td>${o.score ?? '—'}</td>
-    </tr>`).join('');
+  $('vrows').innerHTML = shown.map((o, i) => `<div class="vrow" data-i="${i}">
+      <i style="background:${SIGS[o.kind].c}"></i>
+      <span class="nm">${name(o)}</span>
+      <span class="cen">${Math.round(o.cx)}, ${Math.round(o.cy)}</span>
+      <span class="org">${o.x}, ${o.y}</span>
+      <span class="size">${o.w} × ${o.h}</span>
+      <span class="bear">${o.bearing.toFixed(1)}°</span>
+      <span class="rot">${o.rot.toFixed(1)}°</span>
+      <span class="sco">${o.score ?? '—'}</span>
+    </div>`).join('');
 }
+
+// Straight at the attribute rather than a re-render: the next status packet is up to
+// 200ms away, and a hover has to answer now.
+function setHov(i) {
+  hovI = i === null ? null : +i;
+  for (const el of $('vlay').querySelectorAll('[data-i]'))
+    el.setAttribute('stroke-width', +el.dataset.i === hovI ? 3 : 1.6);
+}
+$('vrows').onmouseover = e => setHov(e.target.closest('.vrow')?.dataset.i ?? null);
+$('vrows').onmouseleave = () => setHov(null);
+
+$('vtog').onclick = () => {
+  const open = body.classList.toggle('vexp');
+  $('vtog').setAttribute('aria-expanded', open);
+};
+
+onLang.push(() => visionRender(lastObjs));   // the count is the one label JS writes
 
 // Push the checkbox state upstream so unwanted families are never detected.
 // One request at a time — ws_cmd is request/response and the robot answers in order.

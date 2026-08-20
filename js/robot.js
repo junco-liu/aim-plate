@@ -1011,6 +1011,8 @@ class AiVision:
             obj.rotation = obj.angle
             obj.area = obj.width * obj.height
             cx, cy = obj.centerX, obj.centerY
+            # same six coefficients as visionRender's panel in js/control.js —
+            # a calibration, so if one side is re-fitted the other has to follow
             obj.bearing = (-34.656 + cx * 0.22539 + cy * 0.011526
                            + cx * cx * -0.000042011 + cx * cy * 0.000010433
                            + cy * cy * -0.00007073)

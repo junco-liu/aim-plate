@@ -73,7 +73,7 @@ if (new URLSearchParams(location.search).has('selftest')) {
   // once matched <body> and took the whole page with it. Every state must leave body visible.
   const keep = body.className;
   const bOk = ['tab-scr', 'm-pen', 'm-img', 'm-emo', 'emo-on', 'emo-nopic',
-               'vlay', 'streaming', 'live', 'busy', 'pristine'].every(c => {
+               'vlay', 'vexp', 'streaming', 'live', 'busy', 'pristine'].every(c => {
     body.className = c;
     return getComputedStyle(body).display !== 'none' && body.offsetWidth > 0;
   });
