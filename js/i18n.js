@@ -306,7 +306,11 @@ function applyLang() {
     if (node.nodeType !== 1) return;
     // the log panes hold sentences already written, and the editor holds the user's own
     // code — leave both in whatever language they are already in
-    if (I18N_SKIP.has(node.tagName) || I18N_SKIP_ID.has(node.id) || node.dataset.i18nHtml) return;
+    // data-i18n-keep: copy that is bilingual by design and stays put in both languages
+    // (the shoulder stop reads 急停 / STOP always), while the element's own attributes
+    // above still get translated
+    if (I18N_SKIP.has(node.tagName) || I18N_SKIP_ID.has(node.id) || node.dataset.i18nHtml
+        || node.hasAttribute('data-i18n-keep')) return;
     for (const a of I18N_ATTRS)
       if (node.hasAttribute(a)) node.setAttribute(a, swap(node.getAttribute(a), conv));
     node.childNodes.forEach(walk);

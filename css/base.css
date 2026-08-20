@@ -129,7 +129,9 @@ body {
   width: 100%; height: 100%; padding: var(--s4) 0;
   background: transparent; cursor: pointer;
   border: 1px solid var(--stop);
-  display: grid; place-items: center; gap: var(--s2);
+  /* align-content, not just place-items: two auto rows in a full-height grid would each
+     take half the strip and fling the halves to the ends — they are one label */
+  display: grid; place-items: center; align-content: center; gap: var(--s2);
   color: var(--stop); -webkit-tap-highlight-color: transparent;
   transition: background var(--fast), color var(--fast);
 }
@@ -137,8 +139,10 @@ body {
   writing-mode: vertical-rl; text-orientation: upright;
   font: 700 13px/1 var(--sans); letter-spacing: .32em;
 }
+/* set at the Chinese label's size, not under it: both halves are always on show, so
+   neither is the other's footnote */
 #estop u { text-decoration: none; writing-mode: vertical-rl;
-  font: 500 9px/1 var(--mono); letter-spacing: .22em; opacity: .75; }
+  font: 500 13px/1 var(--mono); letter-spacing: .22em; }
 #estop:hover:not(:disabled) { background: var(--stop); color: #fff; }
 #estop:active:not(:disabled) { background: var(--stop-2); color: #fff; }
 #estop:disabled { border-color: var(--rule); color: var(--off); cursor: not-allowed; }
