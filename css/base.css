@@ -17,6 +17,8 @@
   --press:  #17518C;   /* the only press colour */
   --stop:   #B3261E;   /* reserved for the stop, nothing else */
   --stop-2: #8E1D17;
+  --ok:     #2E7D4F;   /* reserved for the link being up, nothing else */
+  --wait:   #C58A00;   /* and for the link being attempted */
   --off:    #8B918A;   /* disabled text — 3.4:1, off but still readable */
   --field:  #FFFFFF;   /* anything you can type into */
   --ph:     #9BA09A;
@@ -63,6 +65,8 @@
   --press:  #6FA8DC;   /* lifted, or it disappears into the stock */
   --stop:   #FF6B60;
   --stop-2: #FF8A80;
+  --ok:     #5CC98A;
+  --wait:   #E8B84B;
   --off:    #6E7470;   /* 3.8:1, off but still readable */
   --field:  #0F1113;
   --ph:     #666C68;

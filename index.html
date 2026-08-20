@@ -62,9 +62,10 @@
   <div class="page">
     <header>
       <span class="title">AIM 控制台</span>
-      <span class="gw" id="stateText">未连接</span>
+      <span class="ball" id="stateBall" role="status" title="未连接"><span class="sr" id="stateText">未连接</span></span>
 
       <div class="field">
+        <span class="host" id="hostLabel"></span>
         <input type="text" id="ip" placeholder="192.168.4.1" value="192.168.4.1"
                inputmode="decimal" autocomplete="off" spellcheck="false" aria-label="机器人 IP 地址">
         <button class="btn solid" id="connect"><svg class="icon" viewBox="0 0 24 24"><use href="#i-power"/></svg>连接</button>
@@ -72,7 +73,6 @@
       </div>
 
       <div class="readout">
-        <span class="m hostm"><u>主机</u><b id="hostLabel"></b></span>
         <span class="m"><u>电量</u><b id="battery">—</b></span>
         <span class="m"><u>朝向</u><b id="heading">—</b></span>
       </div>

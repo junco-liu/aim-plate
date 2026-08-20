@@ -59,7 +59,7 @@ function send(obj) {
 function setState(cls, text) {
   body.classList.remove('live', 'busy');
   if (cls) body.classList.add(cls);
-  $('stateText').textContent = text;
+  $('stateText').textContent = $('stateBall').title = text;
   const live = cls === 'live';
   $('ip').disabled = $('connect').disabled = live || cls === 'busy';
   $('disconnect').disabled = !live && cls !== 'busy';

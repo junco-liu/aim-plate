@@ -6,20 +6,27 @@ header {
   flex-wrap: wrap;
 }
 .title { font-size: 15px; font-weight: 650; letter-spacing: -.015em; }
-.gw {
-  font: 500 9.5px/1 var(--mono); letter-spacing: .17em; text-transform: uppercase;
-  color: var(--ink2);
-}
-body.live .gw { color: var(--press); }
+/* The link's state is a colour, not a word: red while there is no link, the press blue
+   blinking (the caption bar's own tick) while it tries, green once it is up. The word
+   itself stays in the markup for screen readers and rides the ball's tooltip. */
+.ball { width: 11px; height: 11px; flex: none; border-radius: 50%;
+  background: var(--stop); transition: background var(--fast); }
+body.busy .ball { background: var(--wait); animation: tick 1.2s steps(2) infinite; }
+body.live .ball { background: var(--ok); }
+.sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+  overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
 .field { display: flex; align-items: center; gap: var(--s2); }
+.host { display: none; font: 400 13.5px/1 var(--mono); font-variant-numeric: tabular-nums; }
+body.live .host { display: inline-block; }
 body.live #ip, body.live #connect { display: none; }
+/* nothing to hang up on until there is a link — disabled, it was only furniture */
+#disconnect { display: none; }
+body.live #disconnect, body.busy #disconnect { display: inline-flex; }
 
 .readout { margin-left: auto; display: flex; align-items: baseline; gap: var(--s5); }
 .readout .m { font: 500 12px/1 var(--mono); font-variant-numeric: tabular-nums; }
 .readout .m u { text-decoration: none; color: var(--ink2); font-weight: 400; margin-right: 5px; }
-.readout .m.hostm { display: none; }
-body.live .readout .m.hostm { display: inline; }
 
 /* the repo link is a colophon note, not a control — same mono voice as the readout */
 .ghl { font: 400 12.5px/1 var(--mono); letter-spacing: .04em; color: var(--ink2);

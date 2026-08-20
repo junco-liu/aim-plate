@@ -20,7 +20,6 @@ const I18N = {
   '机器人 IP 地址': 'Robot IP address',
   '连接': 'Connect',
   '断开': 'Disconnect',
-  '主机': 'HOST',
   '电量': 'BATTERY',
   '朝向': 'HEADING',
   '急停': 'STOP',
