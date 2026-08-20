@@ -189,7 +189,7 @@ ws_cmd 是严格一问一答，这条路直接死。
 
 `show_file` 那条路是死的：它要求图片已经在机器人上，而 websocket 协议里没有上传通道。
 
-### 三个踩过的坑
+### 四个踩过的坑
 
 **`ws_img` 必须用 `binaryType = 'arraybuffer'`。** 用 `'blob'` 时这条流会在帧解析阶段就报
 `Invalid frame header` / `One or more reserved bits are on`，socket 当场死掉；只把 `binaryType`
@@ -199,6 +199,12 @@ ws_cmd 是严格一问一答，这条路直接死。
 **断链前要先发停流字节 `0x00`。** 官方 Python 客户端在退出路径里显式调 `stop_stream()`
 （见 `aim.py` 的 `Robot` 退出处理）。直接掐 socket 会把机器人停在写了一半的帧上。
 本页在 `closeAll()` 里补了这一步，并挂了 `pagehide` —— 关标签页是最常见的断开方式。
+
+**socket 还开着，不等于机器人还在。** 按机器人电源键、或它那边的程序结束时，
+socket 不一定会断，只有状态包里的标志位会变 —— 官方客户端就是靠这两位退出程序的
+（`aim.py` 的 `check_power_button_flag` / `check_program_active_flag`）：bit 9 是电源键，
+bit 10 是「有程序在跑」。本页和官方客户端一样先发 `program_init`，所以见过 bit 10 置起
+之后又掉下去，就是机器人挂断了 —— 此时主动断开并说明原因，而不是继续显示「已连接」。
 
 **`ws_status` 要收到回包才发下一次轮询。** 官方客户端是 send → 阻塞 receive → sleep，
 任何时刻只有一个请求在飞。用固定 `setInterval` 打，机器人一慢请求就叠起来，

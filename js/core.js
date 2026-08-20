@@ -21,6 +21,31 @@ function placeholder(title, hint, cap, meta) {
 
 let cmdWs, imgWs, statusWs, curHost, lastUrl, statusTimer, connectTimer, everOpen, frames = 0;
 let lastStatus = null, statusSeq = 0;   // the newest ws_status packet, for Python
+let progActive = false, leftReason = null;
+
+/* ── the robot leaving on its own ─────────────────────────
+   A socket that is still open is not proof the robot is still there: pressing its power
+   button, or the program ending, leaves the sockets up while the robot has stopped
+   listening. It says so in the status flags, and the two bits the Python client watches
+   (aim.py check_power_button_flag / check_program_active_flag) are the whole mechanism —
+   bit 9 is the power button, bit 10 says a program is running. We send program_init like
+   the library does, so bit 10 falling away after we have seen it set is the robot
+   hanging up on us. */
+const SYS_FLAGS_PWR_BUTTON = 1 << 9, SYS_FLAGS_PROG_ACTIVE = 1 << 10;
+
+function robotLeft(flags) {
+  const f = parseInt(flags, 16);
+  if (!Number.isFinite(f)) return false;
+  const active = !!(f & SYS_FLAGS_PROG_ACTIVE), wasActive = progActive;
+  progActive = active;
+
+  if (f & SYS_FLAGS_PWR_BUTTON) leftReason = t('机器人按了电源键，已结束这次连接');
+  else if (wasActive && !active) leftReason = t('机器人的程序已停止（电源键？），已结束这次连接');
+  else return false;
+
+  disconnect();      // the same path as the 断开 button: cmdWs.onclose reports and tears down
+  return true;
+}
 const pending = [];   // ws_cmd is strictly request/response — replies arrive in send order
 
 function send(obj) {
@@ -51,6 +76,7 @@ function connect() {
   closeAll();                       // never stack sockets on top of a previous attempt
   curHost = host;
   everOpen = false;
+  progActive = false; leftReason = null;   // a fresh session, not the last one's exit
   body.classList.remove('pristine');
   setState('busy', t('连接中…'));
   placeholder(t('正在连接…'), t('尝试 ws://{0}', host), t('连接中'), host);
@@ -102,7 +128,11 @@ function connect() {
     const dropped = everOpen;
     teardown();
     setState(null, '未连接');
-    if (dropped) {
+    if (leftReason) {
+      log(leftReason, true);
+      placeholder(t('机器人已退出'), t('机器人自己结束了连接。按电源键唤醒后重新点「连接」。'),
+                  t('已退出'), '—');
+    } else if (dropped) {
       log(t('连接中断 —— 机器人主动断开或离开了局域网'), true);
       placeholder(t('连接已中断'), t('与 {0} 的连接断开了。点「连接」重试。', host), t('已中断'), '—');
     } else {
@@ -167,6 +197,7 @@ function openStatus(host) {
     if (j.robot) {
       $('battery').textContent = j.robot.battery + '%';
       $('heading').textContent = Math.round(+j.robot.heading) + '°';
+      if (robotLeft(j.robot.flags)) return;   // the link is going down — paint nothing more
     }
     visionRender(visionParse(j.aivision));
   };

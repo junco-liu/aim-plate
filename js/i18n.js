@@ -40,6 +40,13 @@ const I18N = {
   '拨动图注条上的「画面」开关即可查看实时画面。':
     'Flip the Feed switch on the caption bar to see the live picture.',
   '连接已中断': 'Connection lost',
+  '机器人按了电源键，已结束这次连接': 'The robot’s power button was pressed — session ended',
+  '机器人的程序已停止（电源键？），已结束这次连接':
+    'The robot’s program stopped (power button?) — session ended',
+  '机器人已退出': 'Robot signed off',
+  '机器人自己结束了连接。按电源键唤醒后重新点「连接」。':
+    'The robot ended the session itself. Wake it with its power button, then press Connect again.',
+  '已退出': 'ENDED',
   '已中断': 'DROPPED',
   '无法连接': 'Cannot connect',
   '连接失败': 'FAILED',
