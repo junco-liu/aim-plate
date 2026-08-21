@@ -134,6 +134,23 @@ Chrome 147（2026-04）起，**Local Network Access (LNA)** 把「网页访问�
 
 本站部署在 GitHub Pages（自定义域名 `vexaim.cc.cd`，证书已签发）。若页面顶部出现黄色提示条，说明当前是 http，按提示改用 https 即可。
 
+<details>
+<summary><b>微信小程序也试过，连不上机器人 —— 点开看结论</b></summary>
+
+上面那张表同样决定了小程序的命运。三条路各被一堵墙卡死：
+
+| 通道 | 结果 | 卡在哪 |
+|---|---|---|
+| `wx.connectSocket` | `431` | 微信默认带的请求头约 671 字节（UA 独占 293、Referer 80），机器人的 HTTP 服务上限约 580 字节 —— 实测 530B 回 101、604B 回 431。`header` 选项只能加不能减，Referer 官方明说不给设 |
+| `wx.createTCPSocket` | 连接被拒 | 微信禁止连 1024 以下端口，而机器人只开 80（端口扫过，其余一律 refused） |
+| `<web-view>` 套壳本页 | 页面能开，连不上 | 公网 https 页连局域网需「访问本地网络设备」授权，嵌入式 WebView 没有权限 UI。iOS 更早一步就不行 —— web-view 就是 WKWebView，Safari 内核照常拦混合内容 |
+
+机器人本身是清白的：不挑请求头、能同时接四条链路、握手一律规规矩矩回 `101`。
+
+反过来，表里前三行（`file://`、`http://localhost`、`http://192.168.x.x`）都是**放行**，所以用系统 WebView 套壳本页做成 App 是成立的：页面从 `file://` 加载，既无混合内容问题也不需要 LNA 授权。Android 加 `usesCleartextTraffic`，iOS 加 `NSAllowsLocalNetworking` 与 `NSLocalNetworkUsageDescription`。
+
+</details>
+
 ## 使用
 
 1. 机器人与你的设备连入同一局域网（或直连机器人自身 AP，此时 IP 为 `192.168.4.1`）
