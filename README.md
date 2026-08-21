@@ -1,4 +1,4 @@
-# AIM 控制台
+# AIM PLATE
 
 **▸ https://vexaim.cc.cd/**
 

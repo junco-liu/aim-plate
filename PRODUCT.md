@@ -1,4 +1,4 @@
-# PRODUCT.md — AIM 控制台
+# PRODUCT.md — aim-plate
 
 ## 产品
 

@@ -13,7 +13,6 @@
 
 const I18N = {
   // header
-  'AIM 控制台': 'AIM Console',
   '未连接': 'Not connected',
   '连接中…': 'Connecting…',
   '已连接': 'Connected',
