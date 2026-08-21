@@ -26,6 +26,10 @@ body.dragging .figure, body.dragging #scrCv { pointer-events: none; }
 .plateBox {
   border: 1px solid var(--ink);
   width: 100%; max-width: 760px;
+  position: relative;                /* the custom-size sheet hangs off the caption bar */
+  /* it is a grid item, so without this its widest row (the caption bar, once the map's
+     knobs are on it) becomes a floor the whole page has to widen for */
+  min-width: 0;
 }
 .figure { position: relative; aspect-ratio: 4/3; background: var(--plate); overflow: hidden; }
 #view { width: 100%; height: 100%; object-fit: contain; display: block; background: #0d0f0e; }
@@ -41,6 +45,10 @@ body:not(.streaming) #view { display: none; }
   transition: background var(--fast);
 }
 body.streaming .capbar { background: var(--press); }
+/* The map's knobs make this the widest row on the page; letting the bar scroll on its own
+   caps what it can demand, so a narrow window swipes the bar instead of the whole page. */
+.capbar { overflow-x: auto; scrollbar-width: none; }
+.capbar::-webkit-scrollbar { display: none; }
 .capbar .mark { display: flex; align-items: center; gap: 6px; color: #fff; }
 .capbar .mark i { width: 8px; height: 8px; background: currentColor; display: block; }
 body.streaming .capbar .mark i { animation: tick 1.6s steps(2) infinite; }
@@ -226,7 +234,52 @@ body.vexp .vrow.vh { padding-bottom: 4px; }
 }
 .tab.on { color: #fff; border-bottom-color: #fff; }
 .tab:focus-visible { outline: 2px solid #fff; outline-offset: -2px; }
-body.tab-scr .camOnly { display: none; }
+body.tab-scr .camOnly, body.tab-map .camOnly { display: none; }
+
+/* ── the field map: a third content for the same plate ───
+   Same 320×240 viewBox as the vision overlay, so the browser does the scaling and the
+   strokes can be theme variables rather than canvas colour literals. */
+#mlay { position: absolute; inset: 0; width: 100%; height: 100%; display: none; }
+body.tab-map #mlay { display: block; }
+body.tab-map .ph, body.tab-map #view, body.tab-map #vlay { display: none; }
+#mlay .mfield { fill: none; stroke: var(--ink2); stroke-width: 1.4; }
+#mlay .mgrid  { stroke: var(--rule); stroke-width: .7; }
+#mlay .maxis  { stroke: var(--rule); stroke-width: .7; stroke-dasharray: 3 3; }
+#mlay .mbot   { fill: var(--press); }
+#mlay .mdir   { stroke: var(--press); stroke-width: 2; }
+#mlay .mtag   { font: 500 8px var(--mono); fill: var(--ink); }
+#mlay .mhint  { font: 400 9px var(--mono); fill: var(--ink2); }
+
+/* The knobs ride the caption bar, right of the map's own readout: the bar is already
+   this content's status line, and nothing then covers the field. Bar stock, so they are
+   outlined in the bar's own ink rather than the page's. */
+.mapctl { display: none; align-items: center; gap: 4px; flex: none; }
+body.tab-map .mapctl { display: flex; }
+/* 自定义 is two steps, not two permanent boxes: the numbers drop out of the bar in a
+   little sheet, get confirmed, and are gone again. Same stock as the bar, so it reads as
+   part of it rather than as a page dialog. */
+.mpop { position: absolute; right: 11px; top: 100%; z-index: 5;
+  display: flex; align-items: center; gap: 5px; padding: 6px 7px;
+  background: var(--cap-bg); border: 1px solid #ffffff2e; border-top: 0; }
+.mpop[hidden] { display: none; }
+#mapMeta { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mbtn {
+  appearance: none; cursor: pointer; height: 20px; padding: 0 6px; flex: none;
+  display: inline-flex; align-items: center; gap: 3px;
+  background: transparent; border: 1px solid #ffffff59; color: #fff;
+  font: 400 10px/1 var(--mono);
+}
+.mbtn.on { background: #fff; border-color: #fff; color: var(--cap-bg); }
+.mbtn:disabled { color: #ffffff59; cursor: not-allowed; }
+.mbtn .icon { width: 11px; height: 11px; }
+.mbtn:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
+.mnum { display: inline-flex; align-items: center; gap: 3px; height: 20px; padding: 0 4px;
+  border: 1px solid #ffffff59; }
+.mnum u { text-decoration: none; font: 400 9px/1 var(--mono); color: #ffffffa8; }
+.mnum input { width: 38px; height: 100%; padding: 0; border: 0; background: transparent;
+  color: #fff; font: 400 10px/1 var(--mono); }
+.mnum input:focus-visible { outline: none; }
+.mnum:focus-within { border-color: #fff; }
 
 .scr { position: absolute; inset: 0; display: none; place-items: center; }
 body.tab-scr .scr { display: grid; }

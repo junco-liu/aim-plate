@@ -1,14 +1,22 @@
 /* ── wiring ─────────────────────────────────────────────── */
 
-const setTab = scr => {
-  body.classList.toggle('tab-scr', scr);
-  $('tabScr').classList.toggle('on', scr); $('tabCam').classList.toggle('on', !scr);
-  $('tabScr').setAttribute('aria-selected', scr); $('tabCam').setAttribute('aria-selected', !scr);
-  $('scrMeta').hidden = !scr;
-  if (scr) $('grpScreen').open = true;   // the tab is useless without its controls
+/* Three contents share the one plate: the camera, the robot's own screen, and the field
+   map. Only the class on <body> decides which is on show — CSS does the swapping. */
+const TABS = { cam: 'tabCam', scr: 'tabScr', map: 'tabMap' };
+const setTab = which => {
+  for (const k in TABS) {
+    const on = k === which;
+    body.classList.toggle('tab-' + k, on && k !== 'cam');
+    $(TABS[k]).classList.toggle('on', on);
+    $(TABS[k]).setAttribute('aria-selected', on);
+  }
+  $('scrMeta').hidden = which !== 'scr';
+  $('mapMeta').hidden = which !== 'map';
+  // a tab is useless without its controls
+  if (which === 'scr') $('grpScreen').open = true;
+  if (which === 'map') drawMap();   // the map's own controls ride on the plate
 };
-$('tabCam').onclick = () => setTab(false);
-$('tabScr').onclick = () => setTab(true);
+for (const k in TABS) $(TABS[k]).onclick = () => setTab(k);
 
 const MODES = { pen: 'mPen', img: 'mImg', emo: 'mEmo' };
 const setMode = m => {

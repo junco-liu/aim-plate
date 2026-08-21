@@ -71,6 +71,21 @@ const I18N = {
   '摄像头画面开关': 'Camera feed switch',
   'AI 视觉标注开关': 'AI vision annotation switch',
   '240 × 240 · 可见区 r=120': '240 × 240 · visible r=120',
+
+  // the field map
+  '地图': 'Map',
+  '场地地图': 'Field map',
+  '自定义': 'Custom',
+  '场地宽 X（毫米）': 'Field width X (mm)',
+  '场地长 Y（毫米）': 'Field length Y (mm)',
+  '坐标来自里程计，原点是机器人开机的位置，不是场地中心。':
+    'Coordinates come from odometry: the origin is where the robot powered on, not the '
+    + 'centre of the field.',
+  '确定': 'Apply',
+  '地图左旋转 90°': 'Rotate the map 90° left',
+  '地图右旋转 90°': 'Rotate the map 90° right',
+  '视角 {0}°': 'View {0}°',
+  '等待坐标…': 'Waiting for coordinates…',
   '视觉信息': 'Vision',
   '目标 {0}': '{0} objects',
   '展开': 'Expand',

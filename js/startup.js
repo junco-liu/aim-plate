@@ -72,18 +72,35 @@ if (new URLSearchParams(location.search).has('selftest')) {
   // A body state class sharing a name with an element class is how `.scr { display: none }`
   // once matched <body> and took the whole page with it. Every state must leave body visible.
   const keep = body.className;
-  const bOk = ['tab-scr', 'm-pen', 'm-img', 'm-emo', 'emo-on', 'emo-nopic',
+  const bOk = ['tab-scr', 'tab-map', 'm-pen', 'm-img', 'm-emo', 'emo-on', 'emo-nopic',
                'vlay', 'vexp', 'streaming', 'live', 'busy', 'pristine'].every(c => {
     body.className = c;
     return getComputedStyle(body).display !== 'none' && body.offsetWidth > 0;
   });
   body.className = keep;
 
-  const ok = afterRetries <= 2 && afterDrop === 0 && vOk && eOk && bOk;
+  /* mapXform(): the field must stay inside the viewBox at every view angle, a 90° turn
+     must swap which side is long, and a heading must turn with the field — otherwise the
+     marker points somewhere the robot is not. */
+  const [mfx, mfy] = [3 * TILE, 4 * TILE];
+  const corners = f => [[-mfx / 2, -mfy / 2], [mfx / 2, mfy / 2]].map(([x, y]) => f.pt(x, y));
+  const inVB = ([x, y]) => x >= 0 && x <= 320 && y >= 0 && y <= 240;
+  const keepRot = mapRot;
+  mapRot = 0; const m0 = mapXform(mfx, mfy);
+  mapRot = 90; const m9 = mapXform(mfx, mfy);
+  const wide = c => Math.abs(c[1][0] - c[0][0]) > Math.abs(c[1][1] - c[0][1]);
+  const mOk = corners(m0).every(inVB) && corners(m9).every(inVB)
+    && wide(corners(m0)) && !wide(corners(m9))          // 0° is landscape, 90° is portrait
+    && Math.abs(Math.hypot(...m0.vec(0, 1)) - 1) < 1e-9  // a unit heading stays unit length
+    && Math.abs(m0.vec(0, 1)[0] - 1) < 1e-9             // heading 0° (+Y) points screen-right
+    && Math.abs(m9.vec(0, 1)[1] + 1) < 1e-9;            // turned 90°, the same heading points up
+  mapRot = keepRot;
+
+  const ok = afterRetries <= 2 && afterDrop === 0 && vOk && eOk && bOk && mOk;
   const msg = `自检 ${ok ? '通过' : '失败'}：3 次重试后存活 ${afterRetries} 个（应 ≤2），` +
               `断线后存活 ${afterDrop} 个（应 0），视觉解析 ${vOk ? '正常' : '异常'}，` +
               `屏幕编码 ${eOk ? '正常' : '异常'}（${eRect.length} 块），` +
-              `状态类 ${bOk ? '正常' : '有冲突'}`;
+              `状态类 ${bOk ? '正常' : '有冲突'}，地图投影 ${mOk ? '正常' : '异常'}`;
   log(msg, !ok);
   (ok ? console.log : console.error)(msg);
 }

@@ -107,6 +107,8 @@
                 </div>
                 <svg id="vlay" viewBox="0 0 320 240" preserveAspectRatio="xMidYMid meet"
                      aria-hidden="true"></svg>
+                <svg id="mlay" viewBox="0 0 320 240" preserveAspectRatio="xMidYMid meet"
+                     aria-label="场地地图"></svg>
                 <div class="scr">
                   <div class="scrBox">
                     <canvas id="scrCv"></canvas>
@@ -135,10 +137,23 @@
                 <div class="tabs" role="tablist">
                   <button class="tab on" id="tabCam" role="tab" aria-selected="true">画面</button>
                   <button class="tab" id="tabScr" role="tab" aria-selected="false">屏幕</button>
+                  <button class="tab" id="tabMap" role="tab" aria-selected="false">地图</button>
                 </div>
                 <span class="mark"><i></i><span id="capState">未连接</span></span>
                 <span class="sp camOnly" id="capMeta">—</span>
                 <span class="sp" id="scrMeta" hidden>240 × 240 · 可见区 r=120</span>
+                <span class="sp" id="mapMeta" hidden
+                      title="坐标来自里程计，原点是机器人开机的位置，不是场地中心。">—</span>
+                <!-- the map's knobs, on the caption bar beside its readout -->
+                <div class="mapctl">
+                  <button class="mbtn" id="mSize2">2v2</button>
+                  <button class="mbtn on" id="mSize3">3v3</button>
+                  <button class="mbtn" id="mSizeC" aria-expanded="false">自定义</button>
+                  <button class="mbtn" id="mapCcw" aria-label="地图左旋转 90°">
+                    <svg class="icon" viewBox="0 0 24 24"><use href="#i-ccw"/></svg></button>
+                  <button class="mbtn" id="mapCw" aria-label="地图右旋转 90°">
+                    <svg class="icon" viewBox="0 0 24 24"><use href="#i-cw"/></svg></button>
+                </div>
                 <label class="camSwitch camOnly">
                   <input type="checkbox" id="camToggle" class="need" role="switch"
                          disabled aria-label="摄像头画面开关">
@@ -152,6 +167,15 @@
                   <span>标注</span>
                 </label>
               </div>
+              <form class="mpop" id="mapPop" hidden>
+                <label class="mnum"><u>X</u>
+                  <input type="number" id="mapFx" min="100" max="9999" step="1" value="694"
+                         aria-label="场地宽 X（毫米）"></label>
+                <label class="mnum"><u>Y</u>
+                  <input type="number" id="mapFy" min="100" max="9999" step="1" value="925"
+                         aria-label="场地长 Y（毫米）"></label>
+                <button class="mbtn" type="submit">确定</button>
+              </form>
             </div>
           </div>
 
@@ -383,6 +407,7 @@ robot.sound.play(COMPLETE)
 <script src="js/core.js"></script>
 <script src="js/screen.js"></script>
 <script src="js/control.js"></script>
+<script src="js/map.js"></script>
 <script src="js/robot.js"></script>
 <script src="js/python.js"></script>
 <script src="js/prefs.js"></script>

@@ -200,6 +200,7 @@ function openStatus(host) {
       if (robotLeft(j.robot.flags)) return;   // the link is going down — paint nothing more
     }
     visionRender(visionParse(j.aivision));
+    drawMap();                              // no-op unless the map tab is the one on show
   };
 }
 
@@ -241,6 +242,7 @@ function teardown() {
   $('view').removeAttribute('src');
   $('battery').textContent = $('heading').textContent = '—';
   visionRender([]);
+  drawMap();
 }
 
 // Close only the command link; its onclose runs teardown, which detaches handlers before
