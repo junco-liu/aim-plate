@@ -1,4 +1,7 @@
-# AIM PLATE
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="images/wordmark-dark.svg">
+  <img src="images/wordmark.svg" alt="AIM-Plate" height="44">
+</picture>
 
 **▸ https://vexaim.cc.cd/**
 

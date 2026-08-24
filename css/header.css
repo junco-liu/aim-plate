@@ -5,7 +5,17 @@ header {
   border-bottom: 2px solid var(--ink);
   flex-wrap: wrap;
 }
-.title { font-size: 15px; font-weight: 650; letter-spacing: -.015em; }
+/* The name is a wordmark now, so it is a box, not a word — the accessible name moves
+   to aria-label. Two files rather than one file recoloured by CSS: the blue half has to
+   lift in dark mode too, #0249eb sits at 1.9:1 on the dark stock, same reason --press
+   gets lifted. Not prefers-color-scheme inside the SVG either — that would follow the
+   system while the page follows data-theme, and the two disagree the moment someone
+   picks a side. */
+.title { display: block; width: 149px; height: 19px; flex: none;
+  background: url(../images/wordmark.svg) no-repeat center/contain;
+  transition: opacity var(--fast); }
+.title:hover { opacity: .72; }
+:root[data-theme="dark"] .title { background-image: url(../images/wordmark-dark.svg); }
 /* The link's state is a colour, not a word: red while there is no link, the press blue
    blinking (the caption bar's own tick) while it tries, green once it is up. The word
    itself stays in the markup for screen readers and rides the ball's tooltip. */
