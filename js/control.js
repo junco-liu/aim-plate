@@ -32,8 +32,13 @@ let rq;
 const reRender = () => { cancelAnimationFrame(rq); rq = requestAnimationFrame(renderImage); };
 
 $('penW').oninput = e => $('penWv').textContent = e.target.value + ' px';
-$('nCol').oninput = e => { $('nColv').textContent = e.target.value; reRender(); };
-$('zoom').oninput = e => { $('zoomv').textContent = e.target.value + '%'; reRender(); };
+// Typed boxes need clamping (a number input takes anything), and they apply on change
+// rather than on input — a full re-quantise per keystroke would render 1 then 16.
+for (const id of ['nCol', 'zoom']) $(id).onchange = e => {
+  const el = e.target;
+  el.value = Math.min(+el.max, Math.max(+el.min, Math.round(el.value) || +el.min));
+  reRender();
+};
 $('bgColor').oninput = () => { if (img.el) reRender(); };
 
 $('scrSend').onclick = () => quiet(runOps(drawOps(scrOps)));

@@ -66,7 +66,7 @@ async function runOps(ops) {
 }
 
 const showCost = () => $('cost').textContent = !scrOps.length
-  ? t('选一张图片。拖动图版可平移。')
+  ? t('选一张图片。拖动图版可平移，滚轮缩放。')
   : t('{0} 条命令', scrOps.length.toLocaleString()) +
     (sendRate ? t(' · 约 {0} 秒', Math.max(1, Math.round(scrOps.length * sendRate / 1000)))
               : t(' · 首次发送后才会估时'));
@@ -133,10 +133,32 @@ $('file').onchange = e => {
 
 function fitImage() {
   img.ox = img.oy = 0;
-  $('zoom').value = 100; $('zoomv').textContent = '100%';
+  $('zoom').value = 100;
   renderImage();
 }
 $('fit').onclick = fitImage;
+
+// scale that makes the image cover the 240 square; zoom multiplies it
+const coverK = () => Math.max(SCR / img.el.width, SCR / img.el.height);
+
+/* Wheel zooms about the pointer, so framing a crop is one gesture instead of
+   zoom-then-drag-then-zoom. Non-passive: the rail must not scroll under the cursor. */
+scrCv.addEventListener('wheel', e => {
+  if (!img.el || !body.classList.contains('m-img')) return;
+  e.preventDefault();
+  const box = $('zoom'), z0 = +box.value;
+  const z1 = Math.min(+box.max, Math.max(+box.min,
+    Math.round(z0 * (e.deltaY < 0 ? 1.1 : 1 / 1.1))));
+  if (z1 === z0) return;
+  const p = scrPos(e), k0 = coverK() * z0 / 100, k1 = coverK() * z1 / 100;
+  // hold the pixel under the cursor still: it sits (c - start) / k0 into the image
+  const hold = (c, o, len) =>
+    c - (c - ((SCR - len * k0) / 2 + o)) / k0 * k1 - (SCR - len * k1) / 2;
+  img.ox = hold(p.x, img.ox, img.el.width);
+  img.oy = hold(p.y, img.oy, img.el.height);
+  box.value = z1;
+  reRender();
+}, { passive: false });
 
 // Median cut: split the box with the widest channel until we have n of them. The
 // standard answer for "pick n colours from this image", and barely longer than the
@@ -170,7 +192,7 @@ function renderImage() {
   if (!img.el) return;
   const z = +$('zoom').value / 100;
   // cover the 240 square at zoom 1, then pan/zoom on top
-  const k = Math.max(SCR / img.el.width, SCR / img.el.height) * z;
+  const k = coverK() * z;
   const w = img.el.width * k, h = img.el.height * k;
   scrFill($('bgColor').value);
   scrCtx.drawImage(img.el, (SCR - w) / 2 + img.ox, (SCR - h) / 2 + img.oy, w, h);

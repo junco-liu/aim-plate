@@ -151,7 +151,7 @@ const I18N = {
   '复位': 'Reset',
   '颜色数': 'Colours',
   '缩放': 'Zoom',
-  '选一张图片。拖动图版可平移。': 'Pick an image. Drag the plate to pan.',
+  '选一张图片。拖动图版可平移，滚轮缩放。': 'Pick an image. Drag to pan, scroll to zoom.',
   '发送': 'Send',
   '取消': 'Cancel',
   '正面': 'Forward',

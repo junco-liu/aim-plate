@@ -278,13 +278,13 @@
               <button class="btn" id="fit">复位</button>
             </div>
             <input type="file" id="file" accept="image/*" hidden>
-            <div class="meter">
-              <div class="lab"><label for="nCol">颜色数</label><b id="nColv">8</b></div>
-              <input type="range" id="nCol" min="2" max="32" step="1" value="8">
-            </div>
-            <div class="meter">
-              <div class="lab"><label for="zoom">缩放</label><b id="zoomv">100%</b></div>
-              <input type="range" id="zoom" min="100" max="400" step="5" value="100">
+            <!-- typed boxes, like the map's custom size: the exact number is the point,
+                 and zoom has the wheel for the coarse pass -->
+            <div class="numRow">
+              <label class="rnum"><span>颜色数</span>
+                <input type="number" id="nCol" min="2" max="32" step="1" value="8"></label>
+              <label class="rnum"><span>缩放</span>
+                <input type="number" id="zoom" min="100" max="400" step="1" value="100"><u>%</u></label>
             </div>
             <p class="cost" id="cost">选一张图片。拖动图版可平移。</p>
             <div class="row2">
