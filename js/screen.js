@@ -34,7 +34,9 @@ const fmtSec = s => s >= 60 ? t('{0} 分 {1} 秒', Math.floor(s / 60), Math.roun
    the count, the share and the remaining time are all shown live, and the rate is
    re-measured as it goes rather than trusting the one stored from last time. */
 async function runOps(ops) {
-  if (busy || !ops.length) return;
+  // no link: the caller's local repaint already happened, and pressing on would only
+  // flash an empty progress bar. Every caller routes through here, so one guard does.
+  if (busy || !ops.length || cmdWs?.readyState !== 1) return;
   busy = true; abort = false;
   $('scrStop').disabled = false; $('scrSend').disabled = true;
   $('scrBar').hidden = $('scrProg').hidden = false;
@@ -291,7 +293,7 @@ function paintEmoji() {
   const on = emoOn !== null;
   body.classList.toggle('emo-on', on);
   [...$('emos').children].forEach((b, k) => b.classList.toggle('on', on && k === emoOn));
-  $('emoOff').disabled = !on || !body.classList.contains('live');
+  $('emoOff').disabled = !on;      // hiding it locally works with no link
   $('scrMeta').textContent = on
     ? t('表情 · {0} · {1}', emoName(emoOn), t(LOOK_CN[emoLook]))
     : t('240 × 240 · 可见区 r=120');

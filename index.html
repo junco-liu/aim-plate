@@ -300,14 +300,17 @@
               <button class="segb" data-look="2">向右</button>
             </div>
             <div class="emos" id="emos"></div>
-            <button class="btn need" id="emoOff" disabled style="width:100%;margin-top:7px">隐藏表情</button>
+            <!-- not .need: the emoji also sits on this page, so hiding it is worth doing
+                 offline. Disabled only when there is no emoji to hide. -->
+            <button class="btn" id="emoOff" disabled style="width:100%;margin-top:7px">隐藏表情</button>
             <p class="keys" data-i18n-html="keys-emoji">表情盖在绘制内容之上。画笔、图片、清屏会先自动隐藏表情，
               否则命令发出去了屏幕也不动。</p>
           </div>
 
           <div class="row2" style="margin-top:11px">
             <input type="color" id="bgColor" value="#000000" aria-label="背景色">
-            <button class="btn need" id="scrClear" disabled>清屏</button>
+            <!-- not .need: 清屏 wipes the plate here as well as the robot's screen -->
+            <button class="btn" id="scrClear">清屏</button>
           </div>
 
           <p class="cost" id="scrProg" role="status" hidden></p>
