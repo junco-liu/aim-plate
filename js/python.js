@@ -435,6 +435,131 @@ function reindent(t, outward) {
                [Math.max(from, start + head), Math.max(from, end + total)]);
 }
 
+/* ── comment toggle ───────────────────────────────────────
+   Ctrl+/ over every line the selection touches. A block that is already commented all
+   the way through flips back; anything else gets commented, so a half-commented block
+   comes out uniform instead of inverted line by line. The mark goes in at the shallowest
+   indentation in the block, which keeps the column straight when the lines sit at
+   different levels. */
+function toggleComment(t) {
+  const [from, to] = touchedLines(t);
+  const before = t.value.slice(from, to);
+  const lines = before.split('\n');
+  const live = lines.filter(l => l.trim());
+  if (!live.length) return;
+  const off = live.every(l => /^\s*#/.test(l));
+  const col = Math.min(...live.map(l => l.search(/\S/)));
+  let head = 0, total = 0;
+  const after = lines.map((l, i) => {
+    if (!l.trim()) return l;                 // a blank line is not worth a comment mark
+    const was = l.length;
+    l = off ? l.replace(/^(\s*)# ?/, '$1') : l.slice(0, col) + '# ' + l.slice(col);
+    if (!i) head = l.length - was;
+    total += l.length - was;
+    return l;
+  }).join('\n');
+  if (after === before) return;
+  const start = t.selectionStart, end = t.selectionEnd;
+  replaceRange(t, from, to, after,
+               [Math.max(from, start + head), Math.max(from, end + total)]);
+}
+
+/* ── auto-indent ──────────────────────────────────────────
+   Enter carries the current line's indentation down, and a line that opens a block gets
+   one level more. In Python the indentation is the block, so hand-indenting every if and
+   for is where a beginner loses the thread. A colon only opens a block when it is the
+   last thing on the line — a dict literal or a slice ends elsewhere — and a trailing
+   comment does not count as "elsewhere". */
+const OPENS_BLOCK = /:[ \t]*(#.*)?$/;
+
+function autoIndent(t) {
+  if (t.selectionStart !== t.selectionEnd) return false;
+  const at = t.selectionStart;
+  const line = t.value.slice(t.value.lastIndexOf('\n', at - 1) + 1, at);
+  const pad = line.match(/^[ \t]*/)[0] +
+              (OPENS_BLOCK.test(line) && !/^\s*#/.test(line) ? INDENT : '');
+  if (!pad) return false;                    // nothing to carry — let the browser do it
+  replaceRange(t, at, at, '\n' + pad);
+  return true;
+}
+
+/* ── find ─────────────────────────────────────────────────
+   Ctrl+F. The hit is shown by selecting it in the textarea while the query box keeps
+   focus — #pyCode::selection is styled, so an unfocused selection still paints. Closing
+   the bar hands the caret back sitting on the hit, ready to edit. */
+let findAt = -1;
+
+function findHits(q) {
+  const hits = [];
+  if (!q) return hits;
+  const src = $('pyCode').value.toLowerCase(), needle = q.toLowerCase();
+  for (let i = src.indexOf(needle); i !== -1; i = src.indexOf(needle, i + 1)) hits.push(i);
+  return hits;
+}
+
+// setSelectionRange on a textarea that does not have focus will not scroll to the
+// selection, so the line is centred by hand: one line is one line-height, the same
+// arithmetic the gutter already stands on
+function findScroll(ta, at) {
+  const line = ta.value.slice(0, at).split('\n').length - 1;
+  const lh = parseFloat(getComputedStyle(ta).lineHeight) || 20;
+  ta.scrollTop = Math.max(0, line * lh - ta.clientHeight / 2);
+  syncCode();
+}
+
+// step 0 means "from wherever the caret is", which is what typing in the box should do
+function findGo(step) {
+  const ta = $('pyCode'), q = $('pyFindQ').value, hits = findHits(q);
+  if (!hits.length) {
+    findAt = -1;
+    $('pyFindN').textContent = q ? t('无结果') : '';
+    return;
+  }
+  if (step === 0) {
+    findAt = hits.findIndex(i => i >= ta.selectionStart);
+    if (findAt < 0) findAt = 0;
+  } else {
+    findAt = (findAt + step + hits.length) % hits.length;
+  }
+  const at = hits[findAt];
+  $('pyFindN').textContent = `${findAt + 1}/${hits.length}`;
+  ta.setSelectionRange(at, at + q.length);
+  findScroll(ta, at);
+}
+
+function findOpen() {
+  const ta = $('pyCode'), sel = ta.value.slice(ta.selectionStart, ta.selectionEnd);
+  if (sel && !sel.includes('\n')) $('pyFindQ').value = sel;   // what is selected is the query
+  $('pyFind').hidden = false;
+  $('pyFindQ').focus();
+  $('pyFindQ').select();
+  findGo(0);
+}
+
+function findClose() {
+  $('pyFind').hidden = true;
+  $('pyCode').focus();
+}
+
+$('pyFindQ').addEventListener('input', () => findGo(0));
+$('pyFindQ').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); findGo(e.shiftKey ? -1 : 1); }
+  else if (e.key === 'Escape') { e.preventDefault(); findClose(); }
+});
+$('pyFindPrev').onclick = () => findGo(-1);
+$('pyFindNext').onclick = () => findGo(1);
+$('pyFindX').onclick = findClose;
+onLang.push(() => { if (!$('pyFind').hidden) findGo(0); });   // 无结果 is the one JS label
+
+/* Ctrl+F belongs to the code face as a whole, not just the textarea: the console and the
+   run button are part of the same page, and in the desktop shell nothing else answers
+   the key at all. */
+document.addEventListener('keydown', e => {
+  if (!(e.ctrlKey || e.metaKey) || e.key !== 'f' || !body.classList.contains('rail-py')) return;
+  e.preventDefault();
+  findOpen();
+});
+
 /* ── bracket and quote pairing ────────────────────────────
    Open one and the closer comes with it; type the closer that is already there and the
    caret steps over it instead of doubling it; backspace inside an empty pair takes both.
@@ -482,6 +607,9 @@ $('pyCode').addEventListener('keydown', e => {
   const t = e.target;
   if (acKey(e)) return;                      // the completion popup gets first refusal
   if (autoPair(e, t)) return;
+
+  if ((e.ctrlKey || e.metaKey) && e.key === '/') { e.preventDefault(); toggleComment(t); return; }
+  if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey && autoIndent(t)) { e.preventDefault(); return; }
 
   // Tab is taken now, so Escape is the way out of the field — a keyboard trap otherwise
   if (e.key === 'Escape') { t.blur(); return; }

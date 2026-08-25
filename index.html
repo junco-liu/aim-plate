@@ -375,6 +375,16 @@
             <div class="cw">
               <button class="btn quiet" id="pyCopy" title="复制代码" aria-label="复制代码">
                 <svg class="icon" viewBox="0 0 24 24"><use href="#i-copy"/></svg></button>
+              <div class="pyfind" id="pyFind" hidden>
+                <input id="pyFindQ" type="text" spellcheck="false" autocomplete="off"
+                       placeholder="查找" aria-label="在代码中查找">
+                <span class="cnt" id="pyFindN"></span>
+                <button class="btn quiet ico" id="pyFindPrev" title="上一个" aria-label="上一个">
+                  <svg class="icon up" viewBox="0 0 24 24"><use href="#i-chevron"/></svg></button>
+                <button class="btn quiet ico" id="pyFindNext" title="下一个" aria-label="下一个">
+                  <svg class="icon" viewBox="0 0 24 24"><use href="#i-chevron"/></svg></button>
+                <button class="btn quiet ico" id="pyFindX" title="关闭查找" aria-label="关闭查找">✕</button>
+              </div>
               <pre id="pyHi" aria-hidden="true"></pre>
               <textarea id="pyCode" spellcheck="false" autocapitalize="off" autocorrect="off"
                     autocomplete="off" aria-label="Python 代码"># Project:      Move and Stop

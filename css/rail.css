@@ -58,6 +58,32 @@ body:not(.rail-py) .pypanel { display: none; }
 #pyCode:focus { outline: none; }
 #pyCode::selection { background: var(--sel); }
 
+/* The find bar rides over the code rather than pushing it down: the line the caret was
+   on must not move while you are looking for another one. It sits left of the copy
+   button, which owns the top-right corner. */
+/* left and right both pinned so the narrow rail gets whatever is there, then a cap and
+   margin-left:auto so a full-screen editor gets a box beside the copy button rather than
+   a search field a thousand pixels wide */
+.pyfind { position: absolute; z-index: 3; top: 5px; left: 5px; right: 40px;
+  max-width: 300px; margin-left: auto;
+  display: flex; flex-wrap: nowrap; align-items: center; gap: 1px; padding: 2px 2px 2px 7px;
+  border: 1px solid var(--rule); background: var(--field);
+  box-shadow: 0 2px 8px rgb(0 0 0 / .12); }
+/* --tap is the 40px touch target every other control here owes the finger. Find is
+   reachable only by ctrl+F, so it is a keyboard thing on a keyboard machine and a strip
+   that tall would cover three lines of the code being searched. */
+.pyfind input, .pyfind .btn.ico { height: 21px; min-height: 0; }
+/* the rail is narrow and the full-screen editor is not, so the field takes what is left
+   instead of asking for a width of its own */
+.pyfind input { flex: 1; min-width: 0; padding: 0; border: 0; background: none;
+  font: 400 12px var(--mono); color: var(--ink); }
+.pyfind input:focus { outline: none; }
+.pyfind .cnt { flex: none; padding: 0 5px; font: 400 11px var(--mono);
+  color: var(--off); white-space: nowrap; }
+.pyfind .btn.ico { width: 21px; flex: none; padding: 0; font-size: 12px; line-height: 1; }
+.pyfind .icon { width: 13px; height: 13px; }
+.pyfind .icon.up { transform: rotate(180deg); }
+
 /* The copy button sits inside the box it copies, clear of the scrollbar, and stays out
    of the way until the pointer is over the code. Touch has no hover, so there it is
    simply always there — and keyboard focus reveals it either way. */

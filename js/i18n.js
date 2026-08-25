@@ -165,6 +165,12 @@ const I18N = {
   // Python panel
   '运行': 'Run',
   '全屏': 'Full screen',
+  '查找': 'Find',
+  '在代码中查找': 'Find in code',
+  '上一个': 'Previous',
+  '下一个': 'Next',
+  '关闭查找': 'Close find',
+  '无结果': 'No results',
   '退出全屏': 'Exit full screen',
   '复制代码': 'Copy code',
   '代码补全': 'Code completion',
