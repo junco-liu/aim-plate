@@ -65,8 +65,74 @@ const pylog = (m, cls) => {
   $('pyLog').scrollTop = 1e9;
 };
 
+/* ── the second backend ───────────────────────────────────
+   WKWebView on macOS and WebKitGTK on Linux have no WebAssembly JSPI, so run_sync — and
+   with it the whole no-await dialect — cannot exist there. The desktop shell answers the
+   same four bridges from a real CPython over a pipe and sets this flag to say so. On the
+   web the flag is undefined and not one line below runs. */
+const SIDECAR = !!window.AIM_PY_SIDECAR;
+const tauri = () => window.__TAURI__;
+
+/* print() arrives in whatever chunks Python happened to write, and pylog appends the
+   newline itself — so buffer and emit whole lines, or every print costs a blank one. */
+const outBuf = { 0: '', 1: '' };
+function sidecarOut(text, isErr) {
+  const k = isErr ? 1 : 0;
+  outBuf[k] += text;
+  let i;
+  while ((i = outBuf[k].indexOf('\n')) >= 0) {
+    pylog(outBuf[k].slice(0, i), isErr ? 'err' : '');
+    outBuf[k] = outBuf[k].slice(i + 1);
+  }
+}
+function sidecarFlush() {
+  for (const k of [0, 1]) {
+    if (outBuf[k]) pylog(outBuf[k], k ? 'err' : '');
+    outBuf[k] = '';
+  }
+}
+
+let runStart = 0;
+async function sidecarFinish(note, cls) {
+  if (!pyRunning) return;               // done and exit both arrive for a normal run
+  pyRunning = false;
+  sidecarFlush();
+  if (note) pylog(note, cls);
+  await quiet(halt());
+  pylog(t('⊘ 已急停（drive 0 / turn 0）'), 'dim');
+  pySync();
+}
+
+async function sidecarLine(line) {
+  const m = JSON.parse(line);
+  if (m.t === 'out') return sidecarOut(m.s, m.e);
+  if (m.t === 'done') {
+    return sidecarFinish(m.ok ? t('✓ 完成 {0}ms', Math.round(performance.now() - runStart))
+                              : m.err, m.ok ? 'dim' : 'err');
+  }
+  let v = null;
+  try {
+    if (m.t === 'cmd') v = JSON.stringify(await send(JSON.parse(m.p)));
+    else if (m.t === 'status') v = aimStatus();
+    else if (m.t === 't') v = t(m.s);
+  } catch (e) {
+    // the link dropped mid-program. Answering with an error object would only get
+    // json.loads'd into nonsense, so end the run instead of pretending to reply.
+    await tauri().core.invoke('py_stop');
+    return sidecarFinish(String(e?.message ?? e), 'err');
+  }
+  await tauri().core.invoke('py_reply', { line: JSON.stringify({ id: m.id, v }) });
+}
+
+function sidecarListen() {
+  const { listen } = tauri().event;
+  listen('py', e => sidecarLine(e.payload));
+  listen('py-err', e => sidecarOut(e.payload + '\n', true));   // the interpreter's own
+  listen('py-exit', () => sidecarFinish(t('■ 已停止'), 'dim')); // no "done" after a kill
+}
+
 function pySync() {
-  $('pyRun').disabled = !py || pyRunning || !body.classList.contains('live');
+  $('pyRun').disabled = !(py || SIDECAR) || pyRunning || !body.classList.contains('live');
   $('pyStop').disabled = !pyRunning;
 }
 
@@ -176,6 +242,14 @@ robot.screen.hide_emoji()
 
 async function loadPy() {
   if (py || pyLoading) return;
+  if (SIDECAR) {
+    // nothing to download: the interpreter ships with the app
+    sidecarListen();
+    $('pyState').textContent = 'Python ' + t('就绪');
+    acLoadNames();
+    pySync();
+    return;
+  }
   pyLoading = true;
   $('pyState').textContent = t('下载 Python 运行时（约 6 MB）…');
   try {
@@ -206,6 +280,20 @@ async function loadPy() {
 }
 
 $('pyRun').onclick = async () => {
+  if (SIDECAR) {
+    pyRunning = true;
+    $('pyLog').textContent = '';
+    sidecarFlush();
+    pySync();
+    runStart = performance.now();
+    try {
+      await tauri().core.invoke('py_start',
+        { runLine: JSON.stringify({ t: 'run', src: $('pyCode').value }) });
+    } catch (e) {
+      await sidecarFinish(String(e?.message ?? e), 'err');
+    }
+    return;
+  }
   if (!py) return;
   pyAbort = false; pyRunning = true;
   $('pyLog').textContent = '';
@@ -238,7 +326,12 @@ $('pyRun').onclick = async () => {
 
 // don't wait for Python to unwind — it may be mid-round-trip. Halt now; the run's own
 // finish halts again. That redundancy is deliberate, same as the rail's stop bar.
-$('pyStop').onclick = () => { pyAbort = true; quiet(halt()); pylog(t('停止…'), 'dim'); };
+$('pyStop').onclick = () => {
+  pylog(t('停止…'), 'dim');
+  // a kill, not a flag — it is the only thing that interrupts `while True: pass`
+  if (SIDECAR) { tauri().core.invoke('py_stop'); return; }
+  pyAbort = true; quiet(halt());
+};
 
 /* ── the editor ───────────────────────────────────────────
    A transparent textarea laid over a painted <pre>: every native editing behaviour
