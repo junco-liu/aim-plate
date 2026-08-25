@@ -251,10 +251,14 @@ async function loadPy() {
     sidecarListen();
     $('pyState').textContent = t('检查 Python…');
     try {
-      const version = await tauri().core.invoke('py_probe');
+      // one script answers both questions: is there a Python, and what does the robot
+      // library expose. The completion pool comes from the interpreter that will
+      // actually run the code, exactly as it does on the web — there is just no live
+      // namespace to read here, so aim.py is exec'd with stub bridges to make one.
+      const info = JSON.parse(await tauri().core.invoke('py_probe', { script: AC_SCRIPT() }));
       pyReady = true;
-      $('pyState').textContent = `Python ${version} ` + t('就绪');
-      acLoadNames();
+      acMap = info.names;
+      $('pyState').textContent = `Python ${info.version} ` + t('就绪');
     } catch (e) {
       $('pyState').textContent = t('未找到 Python');
       pylog(t('代码页需要 Python 3。装好后重新打开本应用即可，其余功能不受影响。'), 'dim');
@@ -495,6 +499,23 @@ paintCode();
 const AC_PATHS = ['robot', 'robot.inertial', 'robot.screen', 'robot.kicker', 'robot.sound',
                   'robot.led', 'robot.vision', 'AiVision', 'VisionObject', 'Color', 'Timer'];
 let acMap = {}, acItems = [], acIndex = 0, acFrom = 0, acMeasure;
+
+/* The sidecar's half of the same question. Run by py_probe with the resource folder as
+   its working directory, so aim.py is just a sibling file. */
+const AC_SCRIPT = () => [
+  'import json, keyword, builtins, sys',
+  "_g = {'_aim_cmd': lambda *a: None, '_aim_sleep': lambda *a: None,",
+  "      '_aim_status': lambda: None, '_aim_t': lambda s: s}",
+  "exec(compile(open('aim.py', encoding='utf-8').read(), 'aim.py', 'exec'), _g)",
+  "_out = {'': sorted(set([n for n in _g if not n.startswith('_')]",
+  '    + keyword.kwlist + [n for n in dir(builtins) if not n.startswith("_")]))}',
+  'for _p in ' + JSON.stringify(AC_PATHS) + ':',
+  '    try:',
+  '        _out[_p] = sorted(n for n in dir(eval(_p, _g)) if not n.startswith("_"))',
+  '    except Exception:',
+  '        pass',
+  "print(json.dumps({'version': sys.version.split()[0], 'names': _out}))",
+].join('\n');
 
 function acLoadNames() {
   // The bare-name pool is the robot API plus the language itself: keyword.kwlist and
