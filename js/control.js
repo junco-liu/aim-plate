@@ -111,7 +111,10 @@ function visionRender(objs) {
 
   const shown = objs.filter(o => SIGS[o.kind] && sigOn(o.kind))
                     .sort((a, b) => b.w * b.h - a.w * a.h);
-  const name = o => o.kind === 'tag' ? `TAG ${o.id}` : SIGS[o.kind].label;
+  // t() here and not once at SIGS: this runs again on every status packet, which would
+  // otherwise paint Chinese back over whatever the language walker had just fixed. TAG
+  // is a protocol name, not a word, so it stays put.
+  const name = o => o.kind === 'tag' ? `TAG ${o.id}` : t(SIGS[o.kind].label);
 
   $('vlay').innerHTML = !body.classList.contains('vlay') ? '' : shown.map((o, i) => {
     const c = SIGS[o.kind].c, w = i === hovI ? 3 : 1.6;
