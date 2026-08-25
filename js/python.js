@@ -185,7 +185,11 @@ async function loadPy() {
   } catch (e) {
     $('pyState').textContent = t('运行时加载失败');
     pylog(String(e?.message ?? e).split('\n').pop(), 'err');
-    pylog(t('需要 Chrome / Edge（WebAssembly JSPI），并且能访问 cdn.jsdelivr.net。'), 'dim');
+    pylog(t('代码页要 WebAssembly JSPI：Chrome / Edge 137+ 有，Safari 和 Linux 的 WebKit 还没有。'), 'dim');
+    // the one line worth having in a bug report: it says whether the fallback that
+    // does not need JSPI (a worker blocking on SharedArrayBuffer) is even possible here
+    pylog(`isSecureContext=${isSecureContext} crossOriginIsolated=${crossOriginIsolated}`
+          + ` SharedArrayBuffer=${typeof SharedArrayBuffer !== 'undefined'}`, 'dim');
   }
   pyLoading = false;
   pySync();

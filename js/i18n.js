@@ -182,8 +182,8 @@ const I18N = {
   '下载 Python 运行时（约 6 MB）…': 'Downloading the Python runtime (~6 MB)…',
   '就绪': 'ready',
   '运行时加载失败': 'Runtime failed to load',
-  '需要 Chrome / Edge（WebAssembly JSPI），并且能访问 cdn.jsdelivr.net。':
-    'Needs Chrome or Edge (WebAssembly JSPI) and access to cdn.jsdelivr.net.',
+  '代码页要 WebAssembly JSPI：Chrome / Edge 137+ 有，Safari 和 Linux 的 WebKit 还没有。':
+    'The code face needs WebAssembly JSPI: Chrome and Edge 137+ have it, Safari and WebKit on Linux do not yet.',
   'API 与官方 vex 库一致：': 'The API matches the official vex library: ',
   '已复制代码': 'Code copied',
   '复制失败 —— 请手动全选复制': 'Copy failed — select all and copy by hand',
