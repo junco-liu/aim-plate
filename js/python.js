@@ -386,11 +386,11 @@ function paintCode() {
 
 // only the textarea has a scrollbar; it drags the painted layer and the gutter along
 function syncCode() {
-  $('pyHi').scrollTop = $('pyGut').scrollTop = $('pyCode').scrollTop;
-  $('pyHi').scrollLeft = $('pyCode').scrollLeft;
+  $('pyHi').scrollTop = $('pyMark').scrollTop = $('pyGut').scrollTop = $('pyCode').scrollTop;
+  $('pyHi').scrollLeft = $('pyMark').scrollLeft = $('pyCode').scrollLeft;
 }
 
-$('pyCode').addEventListener('input', paintCode);
+$('pyCode').addEventListener('input', () => { paintCode(); findRepaint(); });
 $('pyCode').addEventListener('scroll', syncCode);
 
 /* ── indentation ──────────────────────────────────────────
@@ -507,11 +507,27 @@ function findScroll(ta, at) {
   syncCode();
 }
 
+/* Every hit gets a block of colour, the one you are standing on a stronger one. This is
+   a layer of its own rather than the textarea's selection: while the query box holds
+   focus the textarea's selection is not painted, and taking focus back would mean typing
+   into the code instead of into the box. */
+function paintMarks(hits, len) {
+  const src = $('pyCode').value;
+  let out = '', last = 0;
+  hits.forEach((at, i) => {
+    out += escHtml(src.slice(last, at)) +
+           `<mark${i === findAt ? ' class="on"' : ''}>${escHtml(src.slice(at, at + len))}</mark>`;
+    last = at + len;
+  });
+  $('pyMark').innerHTML = out + escHtml(src.slice(last)) + '\n';
+}
+
 // step 0 means "from wherever the caret is", which is what typing in the box should do
 function findGo(step) {
   const ta = $('pyCode'), q = $('pyFindQ').value, hits = findHits(q);
   if (!hits.length) {
     findAt = -1;
+    $('pyMark').textContent = '';
     $('pyFindN').textContent = q ? t('无结果') : '';
     return;
   }
@@ -523,9 +539,21 @@ function findGo(step) {
   }
   const at = hits[findAt];
   $('pyFindN').textContent = `${findAt + 1}/${hits.length}`;
+  paintMarks(hits, q.length);
   ta.setSelectionRange(at, at + q.length);
   findScroll(ta, at);
 }
+
+// the code can be edited with the bar still open; the marks have to follow the text
+// without dragging the caret to a different hit
+const findRepaint = () => {
+  if ($('pyFind').hidden) return;
+  const q = $('pyFindQ').value, hits = findHits(q);
+  findAt = Math.min(findAt, hits.length - 1);
+  hits.length ? paintMarks(hits, q.length) : ($('pyMark').textContent = '');
+  $('pyFindN').textContent = hits.length ? `${findAt + 1}/${hits.length}`
+                                         : (q ? t('无结果') : '');
+};
 
 function findOpen() {
   const ta = $('pyCode'), sel = ta.value.slice(ta.selectionStart, ta.selectionEnd);
@@ -538,6 +566,7 @@ function findOpen() {
 
 function findClose() {
   $('pyFind').hidden = true;
+  $('pyMark').textContent = '';
   $('pyCode').focus();
 }
 

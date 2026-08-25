@@ -48,11 +48,18 @@ body:not(.rail-py) .pypanel { display: none; }
   padding: 9px 8px 9px 10px; border-right: 1px solid var(--rule-2);
   background: var(--paper); color: var(--off); }
 .cw { position: relative; overflow: hidden; }
-.gut, #pyHi, #pyCode {
+.gut, #pyHi, #pyMark, #pyCode {
   margin: 0; font: 400 12.5px/1.65 var(--mono); tab-size: 4; white-space: pre;
 }
-#pyHi, #pyCode { position: absolute; inset: 0; padding: 9px 10px; border: 0; }
+#pyHi, #pyMark, #pyCode { position: absolute; inset: 0; padding: 9px 10px; border: 0; }
 #pyHi { overflow: hidden; pointer-events: none; color: var(--ink); }
+
+/* The find hits get a layer of their own, underneath the coloured code and above
+   nothing: same text, same metrics, invisible ink, so all that shows is the block of
+   colour behind the words. Earlier in the DOM than #pyHi, which is what puts it below. */
+#pyMark { overflow: hidden; pointer-events: none; color: transparent; }
+#pyMark mark { background: var(--sel); color: transparent; border-radius: 2px; }
+#pyMark mark.on { background: var(--sel-on); }
 #pyCode { overflow: auto; resize: none; background: none; color: transparent;
   -webkit-text-fill-color: transparent; caret-color: var(--ink); }
 #pyCode:focus { outline: none; }

@@ -23,6 +23,7 @@
   --field:  #FFFFFF;   /* anything you can type into */
   --ph:     #9BA09A;
   --sel:    #C9DAEC;
+  --sel-on: #97BEE4;   /* the find hit you are standing on */
   --shadow: #17181A1F;
   --code-str: #3E6B2F; /* code is its own surface; one hue beyond the pair */
 
@@ -71,6 +72,7 @@
   --field:  #0F1113;
   --ph:     #666C68;
   --sel:    #2C4A66;
+  --sel-on: #3F6C96;
   --shadow: #00000066;
   --code-str: #8FC97A;
   --cap-bg: #2E3235;   /* still a bar, just lifted off the stock */
