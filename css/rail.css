@@ -61,6 +61,10 @@ body:not(.rail-py) .pypanel { display: none; }
 /* The find bar rides over the code rather than pushing it down: the line the caret was
    on must not move while you are looking for another one. It sits left of the copy
    button, which owns the top-right corner. */
+/* display:flex below outranks the browser's own [hidden] { display: none }, so without
+   this line the bar is on screen from the moment the page loads and the close button
+   sets an attribute nobody paints */
+.pyfind[hidden] { display: none; }
 /* left and right both pinned so the narrow rail gets whatever is there, then a cap and
    margin-left:auto so a full-screen editor gets a box beside the copy button rather than
    a search field a thousand pixels wide */
