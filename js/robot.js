@@ -11,17 +11,20 @@
    fetch()ed, and fetch from file:// is CORS-blocked — that would cost the
    "download and open locally" path this project keeps for Firefox and Safari.
 
-   Three JS bridges are all it talks to, all defined in python.js:
-     aimCmd(json)  one ws_cmd round trip, strictly request/response
-     aimSleep(sec) a delay that yields to the event loop and honours 停止
-     aimStatus()   the newest ws_status packet, plus a _seq counter
+   Four calls are all it makes to the outside, and the host supplies every one:
+     _aim_cmd(json)   one ws_cmd round trip, strictly request/response
+     _aim_sleep(sec)  a delay that honours 停止
+     _aim_status()    the newest ws_status packet as JSON, or None
+     _aim_t(zh)       one translated string
+   All four are string in, string out, which is what lets a second host exist: the
+   desktop shell runs these same 1100 lines on real CPython and answers the four over
+   a pipe. One leading underscore and not two — inside a class body `__aim_cmd` would
+   be mangled to `_Robot__aim_cmd`, the same trap python.js notes for its own names.
    ────────────────────────────────────────────────────────────────────────── */
 
 const AIM_PY = String.raw`
 import json, math, time
-import js
 from enum import Enum
-from pyodide.ffi import run_sync
 
 DRIVE_VELOCITY_MAX_MMPS = 200
 TURN_VELOCITY_MAX_DPS   = 180
@@ -359,7 +362,7 @@ def _lights(led):
     disagree, and the documented one wins here."""
     if isinstance(led, (tuple, list, set, frozenset)):
         if not led:
-            raise AimException(js.aimT('LED 集合是空的'))
+            raise AimException(_aim_t('LED 集合是空的'))
         names = []
         for one in led:
             for name in _lights(one):
@@ -399,16 +402,16 @@ class Robot:
     @property
     def status(self):
         """the newest ws_status packet"""
-        raw = js.aimStatus()
+        raw = _aim_status()
         # JS null arrives as JsNull, not None, so test the type rather than identity —
         # otherwise the miss surfaces as a json TypeError instead of this message
         if not isinstance(raw, str):
-            raise DisconnectedException(js.aimT(
+            raise DisconnectedException(_aim_t(
                 '还没有状态包 —— 机器人未连接，或 ws_status 还没回过一包'))
         return json.loads(raw)
 
     def _seq(self):
-        raw = js.aimStatus()
+        raw = _aim_status()
         return json.loads(raw)['_seq'] if isinstance(raw, str) else -1
 
     def _flags(self):
@@ -417,7 +420,7 @@ class Robot:
     def robot_send(self, json_cmd):
         """send one command over ws_cmd and block on its reply"""
         try:
-            response = json.loads(run_sync(js.aimCmd(json.dumps(json_cmd))))
+            response = json.loads(_aim_cmd(json.dumps(json_cmd)))
         except Exception as error:
             if STOP_MARK in str(error):
                 raise                      # 停止不是错误，必须继续往上抛
@@ -442,14 +445,14 @@ class Robot:
         time_start = time.time()
         while True:
             if state_method() is False:
-                run_sync(js.aimSleep(0.05))          # debounce, twice like official
+                _aim_sleep(0.05)                     # debounce, twice like official
                 if state_method() is False:
                     return
             if time.time() - time_start > 10:
                 print(name, 'wait timed out, stopping')
                 self.stop_all_movement()
                 return
-            run_sync(js.aimSleep(0.1))
+            _aim_sleep(0.1)
 
     # ── sensing motion ───────────────────────────────────────────────────────
     def get_x_position(self):
@@ -583,7 +586,7 @@ class Robot:
                          'y': y * math.cos(offset_radians) + x * math.sin(offset_radians)})
         target = self._seq() + 2      # wait out two packets, as official does
         while self._seq() < target:
-            run_sync(js.aimSleep(0.05))
+            _aim_sleep(0.05)
 
     # ── cargo ────────────────────────────────────────────────────────────────
     def _held(self, classnames, min_cx, max_cx, min_y):
@@ -1111,7 +1114,7 @@ class Timer:
 
 def wait(amount, units=TimeUnits.SECONDS):
     """pause the program. Interruptible — 停止 breaks out of it."""
-    run_sync(js.aimSleep(amount if units == TimeUnits.SECONDS else amount / 1000.0))
+    _aim_sleep(amount if units == TimeUnits.SECONDS else amount / 1000.0)
 
 
 sleep = wait

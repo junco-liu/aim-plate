@@ -88,6 +88,16 @@ window.aimSleep = async sec => {
   }
 };
 
+const AIM_PY_HOST = String.raw`
+import js
+from pyodide.ffi import run_sync
+
+def _aim_cmd(payload):   return run_sync(js.aimCmd(payload))
+def _aim_sleep(seconds): run_sync(js.aimSleep(seconds))
+def _aim_status():       return js.aimStatus()          # a JSON string, or JsNull
+def _aim_t(zh):          return js.aimT(zh)
+`;
+
 /* The Python API lives in js/robot.js as AIM_PY. It is re-run before every program so
    a crashed run leaves no half-mutated robot behind — Robot() is cheap, it only binds
    to the page's sockets. */
@@ -174,7 +184,7 @@ async function loadPy() {
     // JSPI is what lets Python call the robot without await. There is no second-best
     // here, only a different dialect users would have to learn — so say so instead.
     await p.runPythonAsync('from pyodide.ffi import run_sync\nimport js\nrun_sync(js.Promise.resolve(1))');
-    p.runPython(AIM_PY, { filename: 'aim.py' });
+    p.runPython(AIM_PY_HOST + AIM_PY, { filename: 'aim.py' });
     py = p;
     $('pyState').textContent = `Python ${py.version} ` + t('就绪');
     acLoadNames();
@@ -204,7 +214,7 @@ $('pyRun').onclick = async () => {
   try {
     // filename, so the library's own frames read "aim.py" and the traceback filter
     // below can tell them from the user's "<exec>" ones
-    py.runPython(AIM_PY, { filename: 'aim.py' });   // a fresh robot each run, see above
+    py.runPython(AIM_PY_HOST + AIM_PY, { filename: 'aim.py' });   // a fresh robot each run
     await py.runPythonAsync($('pyCode').value);
     pylog(t('✓ 完成 {0}ms', Math.round(performance.now() - t0)), 'dim');
   } catch (e) {
