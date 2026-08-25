@@ -56,6 +56,7 @@ splitter('vsplit', '--pylog', 'aimPyLog', 60, 600, 150,
 const PY_URL = 'https://cdn.jsdelivr.net/pyodide/v314.0.5/full/pyodide.mjs';
 const PY_STOP = '__aim_stop__';
 let py = null, pyLoading = false, pyAbort = false, pyRunning = false;
+let pyReady = false;              // the sidecar has no `py` object to stand in for it
 
 const pylog = (m, cls) => {
   const el = document.createElement('span');
@@ -132,7 +133,7 @@ function sidecarListen() {
 }
 
 function pySync() {
-  $('pyRun').disabled = !(py || SIDECAR) || pyRunning || !body.classList.contains('live');
+  $('pyRun').disabled = !(py || pyReady) || pyRunning || !body.classList.contains('live');
   $('pyStop').disabled = !pyRunning;
 }
 
@@ -243,10 +244,22 @@ robot.screen.hide_emoji()
 async function loadPy() {
   if (py || pyLoading) return;
   if (SIDECAR) {
-    // nothing to download: the interpreter ships with the app
+    // nothing to download, but there may be nothing to run either: Windows ships an
+    // interpreter and the .deb depends on one, while on macOS it is the user's to
+    // install. Ask before enabling 运行, so an empty machine says so now rather than
+    // failing on the first program someone writes.
     sidecarListen();
-    $('pyState').textContent = 'Python ' + t('就绪');
-    acLoadNames();
+    $('pyState').textContent = t('检查 Python…');
+    try {
+      const version = await tauri().core.invoke('py_probe');
+      pyReady = true;
+      $('pyState').textContent = `Python ${version} ` + t('就绪');
+      acLoadNames();
+    } catch (e) {
+      $('pyState').textContent = t('未找到 Python');
+      pylog(t('代码页需要 Python 3。装好后重新打开本应用即可，其余功能不受影响。'), 'dim');
+      pylog(String(e?.message ?? e), 'err');
+    }
     pySync();
     return;
   }

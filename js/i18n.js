@@ -182,6 +182,10 @@ const I18N = {
   '下载 Python 运行时（约 6 MB）…': 'Downloading the Python runtime (~6 MB)…',
   '就绪': 'ready',
   '运行时加载失败': 'Runtime failed to load',
+  '检查 Python…': 'Checking Python…',
+  '未找到 Python': 'Python not found',
+  '代码页需要 Python 3。装好后重新打开本应用即可，其余功能不受影响。':
+    'The code face needs Python 3. Install it and reopen this app; nothing else is affected.',
   '代码页要 WebAssembly JSPI：Chrome / Edge 137+ 有，Safari 和 Linux 的 WebKit 还没有。':
     'The code face needs WebAssembly JSPI: Chrome and Edge 137+ have it, Safari and WebKit on Linux do not yet.',
   'API 与官方 vex 库一致：': 'The API matches the official vex library: ',
